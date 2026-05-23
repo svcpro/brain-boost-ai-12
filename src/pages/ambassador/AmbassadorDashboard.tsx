@@ -3,224 +3,196 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import {
-  LayoutDashboard,
-  User,
-  GraduationCap,
-  Target,
+  Home,
   Share2,
-  Trophy,
   Gift,
+  CheckSquare,
+  User,
   Calendar,
+  Trophy,
   Users2,
-  Award,
-  BarChart3,
-  MessageCircle,
-  Sparkles,
-  LogOut,
+  Bell,
   Loader2,
-  Mail,
-  ChevronRight,
-  Menu,
-  X,
+  ArrowLeft,
+  Sparkles,
 } from "lucide-react";
-import { AmbAtmosphere, AmbParticles, AmbCard, AMB, NeonButton, LiveDot } from "@/components/ambassador/ui/primitives";
 import { useAmbassador } from "@/components/ambassador/useAmbassador";
-import { WelcomeSection } from "@/components/ambassador/WelcomeSection";
-import { ProfileSection } from "@/components/ambassador/ProfileSection";
-import { MissionsSection } from "@/components/ambassador/MissionsSection";
-import { LeaderboardSection } from "@/components/ambassador/LeaderboardSection";
-import { RewardsSection } from "@/components/ambassador/RewardsSection";
-import { BadgesSection } from "@/components/ambassador/BadgesSection";
-import { TrainingSection } from "@/components/ambassador/TrainingSection";
 import { AmbassadorSignInGate } from "@/components/ambassador/AmbassadorSignInGate";
+import { SimpleAtmosphere, Btn, Card, T } from "@/components/ambassador/simple/ui";
+import { SimpleHome } from "@/components/ambassador/simple/SimpleHome";
+import { SimpleReferrals } from "@/components/ambassador/simple/SimpleReferrals";
+import { SimpleRewards } from "@/components/ambassador/simple/SimpleRewards";
+import { SimpleTasks } from "@/components/ambassador/simple/SimpleTasks";
+import { SimpleWorkshops } from "@/components/ambassador/simple/SimpleWorkshops";
+import { SimpleLeaderboard } from "@/components/ambassador/simple/SimpleLeaderboard";
+import { SimpleCommunity } from "@/components/ambassador/simple/SimpleCommunity";
+import { SimpleProfile } from "@/components/ambassador/simple/SimpleProfile";
 
-
-const SECTIONS = [
-  { key: "home", label: "Home", icon: LayoutDashboard },
-  { key: "profile", label: "Profile", icon: User },
-  { key: "training", label: "Training", icon: GraduationCap },
-  { key: "missions", label: "Missions", icon: Target },
-  { key: "referrals", label: "Referrals", icon: Share2 },
-  { key: "leaderboard", label: "Leaderboard", icon: Trophy },
+const TABS = [
+  { key: "home", label: "Home", icon: Home },
+  { key: "referrals", label: "Refer", icon: Share2 },
   { key: "rewards", label: "Rewards", icon: Gift },
-  { key: "badges", label: "Badges", icon: Award },
-  { key: "workshops", label: "Workshops", icon: Calendar },
-  { key: "events", label: "Events", icon: Sparkles },
-  { key: "community", label: "Community", icon: Users2 },
-
-  { key: "certificates", label: "Certificates", icon: Award },
-  { key: "analytics", label: "Analytics", icon: BarChart3 },
-  { key: "founder", label: "Founder", icon: MessageCircle },
+  { key: "tasks", label: "Tasks", icon: CheckSquare },
+  { key: "profile", label: "Profile", icon: User },
 ] as const;
 
-type SectionKey = (typeof SECTIONS)[number]["key"];
+const SECONDARY = [
+  { key: "workshops", label: "Workshops", icon: Calendar },
+  { key: "leaderboard", label: "Leaderboard", icon: Trophy },
+  { key: "community", label: "Community", icon: Users2 },
+] as const;
+
+type Key =
+  | "home"
+  | "referrals"
+  | "rewards"
+  | "tasks"
+  | "profile"
+  | "workshops"
+  | "leaderboard"
+  | "community";
 
 export default function AmbassadorDashboard() {
   const params = useParams();
   const navigate = useNavigate();
-  const { state, refresh, reload } = useAmbassador();
-  const active = (params.section as SectionKey) || "home";
-  const [navOpen, setNavOpen] = useState(false);
+  const { state, refresh } = useAmbassador();
+  const active = (params.section as Key) || "home";
 
-  useEffect(() => {
-    setNavOpen(false);
-  }, [active]);
+  const go = (k: string) => navigate(`/ambassador/${k === "home" ? "" : k}`);
 
   return (
     <MotionConfig reducedMotion="user">
       <Helmet>
-        <title>Campus Ambassador Dashboard — ACRY.ai</title>
-        <meta name="description" content="India's largest AI Student Leadership ecosystem. Track missions, climb the leaderboard, and lead your campus." />
+        <title>Ambassador Dashboard — ACRY.ai</title>
+        <meta
+          name="description"
+          content="Track referrals, earn rewards, and grow your campus community with ACRY Campus Ambassador."
+        />
       </Helmet>
 
-      <div className="relative min-h-screen overflow-x-hidden" style={{ color: AMB.text, fontFamily: "'DM Sans', 'Inter', system-ui, sans-serif" }}>
-        <AmbAtmosphere />
-        <AmbParticles />
+      <div
+        className="relative min-h-screen overflow-x-hidden"
+        style={{
+          color: T.text,
+          fontFamily: "'Inter', 'Poppins', system-ui, sans-serif",
+          background: T.bg,
+        }}
+      >
+        <SimpleAtmosphere />
 
-        {state.kind === "loading" && <FullScreen><Loader2 className="h-8 w-8 animate-spin" style={{ color: AMB.cyan }} /></FullScreen>}
+        {state.kind === "loading" && (
+          <div className="grid min-h-screen place-items-center">
+            <Loader2 className="h-6 w-6 animate-spin" style={{ color: T.purple }} />
+          </div>
+        )}
         {state.kind === "anonymous" && <AmbassadorSignInGate />}
         {state.kind === "not_approved" && <PendingGate email={state.email} />}
 
         {state.kind === "ready" && (
-          <div className="mx-auto flex max-w-[1400px]">
-            {/* Desktop sidebar */}
-            <aside
-              className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r p-4 lg:flex"
-              style={{ borderColor: AMB.border, background: "rgba(5,6,15,0.5)", backdropFilter: "blur(20px)" }}
-            >
-              <BrandMark />
-              <nav className="mt-6 flex-1 space-y-1 overflow-y-auto">
-                {SECTIONS.map((s) => (
-                  <NavLink key={s.key} item={s} active={active === s.key} onClick={() => navigate(`/ambassador/${s.key === "home" ? "" : s.key}`)} />
-                ))}
-              </nav>
-              <SignOutBtn />
-            </aside>
-
-            {/* Main */}
-            <main className="min-h-screen flex-1 px-4 pb-28 pt-4 sm:px-6 sm:pt-6 lg:pb-8">
-              {/* Mobile header */}
-              <div className="mb-4 flex items-center justify-between lg:hidden">
-                <BrandMark compact />
-                <button
-                  className="grid h-10 w-10 place-items-center rounded-xl border"
-                  style={{ borderColor: AMB.border, background: "rgba(255,244,234,0.04)" }}
-                  onClick={() => setNavOpen(true)}
-                  aria-label="Open menu"
-                >
-                  <Menu className="h-5 w-5" />
-                </button>
-              </div>
-
-              {/* Desktop HUD top strip */}
-              <div
-                className="mb-5 hidden items-center justify-between rounded-xl border px-4 py-2 lg:flex"
-                style={{
-                  borderColor: AMB.border,
-                  background: "linear-gradient(90deg, rgba(255,107,53,0.06), rgba(251,191,36,0.04), rgba(181,61,255,0.06))",
-                  backdropFilter: "blur(12px)",
-                }}
-              >
-                <div className="flex items-center gap-4 text-[10px] uppercase tracking-[0.18em]" style={{ color: AMB.mute }}>
-                  <LiveDot color={AMB.cyan} label="Ambassador OS · Online" />
-                  <span className="hidden xl:inline">Sector: India · Network healthy</span>
-                </div>
-                <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.18em]" style={{ color: AMB.mute }}>
-                  <span style={{ color: AMB.amber }}>{new Date().toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short" })}</span>
-                  <span>·</span>
-                  <span style={{ fontFamily: "'Space Grotesk', sans-serif", color: AMB.text }}>
-                    {new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                </div>
-              </div>
-
-              <SectionHeader active={active} />
-
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={active}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.25 }}
-                  className="relative"
-                >
-                  {active === "home" && <WelcomeSection profile={state.profile} />}
-                  {active === "profile" && <ProfileSection profile={state.profile} onUpdated={refresh} />}
-                  {active === "training" && <TrainingSection profile={state.profile} />}
-                  {active === "missions" && <MissionsSection profile={state.profile} />}
-                  {active === "leaderboard" && <LeaderboardSection profile={state.profile} />}
-                  {active === "rewards" && <RewardsSection profile={state.profile} />}
-                  {active === "badges" && <BadgesSection profile={state.profile} />}
-                  {!["home","profile","training","missions","leaderboard","rewards","badges"].includes(active) && <ComingSoon section={active} />}
-                </motion.div>
-              </AnimatePresence>
-            </main>
-
-            {/* Mobile drawer */}
-            <AnimatePresence>
-              {navOpen && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-50 lg:hidden"
-                  onClick={() => setNavOpen(false)}
-                >
-                  <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-                  <motion.aside
-                    initial={{ x: -300 }}
-                    animate={{ x: 0 }}
-                    exit={{ x: -300 }}
-                    transition={{ type: "spring", stiffness: 280, damping: 30 }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="relative h-full w-72 border-r p-4"
-                    style={{ borderColor: AMB.border, background: AMB.bg2 }}
+          <div className="mx-auto max-w-xl px-4 pb-28 pt-4 sm:pt-6">
+            {/* Top bar */}
+            <div className="mb-4 flex items-center justify-between">
+              {active === "home" ? (
+                <Link to="/" className="flex items-center gap-2">
+                  <div
+                    className="grid h-9 w-9 place-items-center rounded-xl"
+                    style={{ background: `linear-gradient(135deg, ${T.purple}, ${T.cyan})` }}
                   >
-                    <div className="mb-4 flex items-center justify-between">
-                      <BrandMark compact />
-                      <button onClick={() => setNavOpen(false)} className="grid h-9 w-9 place-items-center rounded-lg" style={{ background: "rgba(255,255,255,0.06)" }}>
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                    <nav className="space-y-1">
-                      {SECTIONS.map((s) => (
-                        <NavLink key={s.key} item={s} active={active === s.key} onClick={() => navigate(`/ambassador/${s.key === "home" ? "" : s.key}`)} />
-                      ))}
-                    </nav>
-                    <div className="mt-4">
-                      <SignOutBtn />
-                    </div>
-                  </motion.aside>
-                </motion.div>
+                    <Sparkles className="h-4 w-4" style={{ color: "#0a0a0a" }} />
+                  </div>
+                  <div className="text-sm font-bold tracking-tight" style={{ color: T.text }}>
+                    ACRY Ambassador
+                  </div>
+                </Link>
+              ) : (
+                <button
+                  onClick={() => go("home")}
+                  className="flex items-center gap-1.5 text-sm font-semibold"
+                  style={{ color: T.text }}
+                >
+                  <ArrowLeft className="h-4 w-4" /> {labelFor(active)}
+                </button>
               )}
+              <button
+                className="grid h-9 w-9 place-items-center rounded-xl border"
+                style={{ borderColor: T.border, background: T.surface }}
+                aria-label="Notifications"
+              >
+                <Bell className="h-4 w-4" style={{ color: T.mute }} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={active}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2 }}
+              >
+                {active === "home" && <SimpleHome profile={state.profile} onGo={go} />}
+                {active === "referrals" && <SimpleReferrals profile={state.profile} />}
+                {active === "rewards" && <SimpleRewards profile={state.profile} />}
+                {active === "tasks" && <SimpleTasks />}
+                {active === "profile" && <SimpleProfile profile={state.profile} onUpdated={refresh} />}
+                {active === "workshops" && <SimpleWorkshops profile={state.profile} />}
+                {active === "leaderboard" && <SimpleLeaderboard profile={state.profile} />}
+                {active === "community" && <SimpleCommunity />}
+              </motion.div>
             </AnimatePresence>
 
-            {/* Bottom nav (mobile only) */}
+            {/* Secondary links (shown on home) */}
+            {active === "home" && (
+              <div className="mt-5 grid grid-cols-3 gap-2">
+                {SECONDARY.map((s) => {
+                  const I = s.icon;
+                  return (
+                    <button
+                      key={s.key}
+                      onClick={() => go(s.key)}
+                      className="flex flex-col items-center gap-1.5 rounded-xl border py-3 text-[11px] font-medium transition-colors hover:bg-white/5"
+                      style={{ borderColor: T.border, color: T.mute, background: T.surface }}
+                    >
+                      <I className="h-4 w-4" style={{ color: T.purple }} />
+                      {s.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Bottom nav */}
             <nav
-              className="fixed inset-x-0 bottom-0 z-40 border-t lg:hidden"
+              className="fixed inset-x-0 bottom-0 z-40 border-t"
               style={{
-                borderColor: AMB.border,
-                background: "rgba(5,6,15,0.85)",
+                borderColor: T.border,
+                background: "rgba(7,10,20,0.92)",
                 backdropFilter: "blur(20px)",
                 paddingBottom: "env(safe-area-inset-bottom, 0px)",
               }}
             >
-              <div className="grid grid-cols-5">
-                {SECTIONS.slice(0, 5).map((s) => {
-                  const A = s.icon;
-                  const isActive = active === s.key;
+              <div className="mx-auto grid max-w-xl grid-cols-5">
+                {TABS.map((t) => {
+                  const I = t.icon;
+                  const isActive = active === t.key;
                   return (
                     <button
-                      key={s.key}
-                      onClick={() => navigate(`/ambassador/${s.key === "home" ? "" : s.key}`)}
-                      className="flex flex-col items-center gap-1 py-2.5 text-[10px]"
-                      style={{ color: isActive ? AMB.cyan : AMB.mute }}
+                      key={t.key}
+                      onClick={() => go(t.key)}
+                      className="relative flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors"
+                      style={{ color: isActive ? T.cyan : T.mute }}
                     >
-                      <A className="h-5 w-5" />
-                      {s.label}
+                      {isActive && (
+                        <motion.span
+                          layoutId="amb-tab-pill"
+                          className="absolute inset-x-4 top-0 h-0.5 rounded-full"
+                          style={{ background: `linear-gradient(90deg, ${T.purple}, ${T.cyan})` }}
+                        />
+                      )}
+                      <I className="h-5 w-5" />
+                      {t.label}
                     </button>
                   );
                 })}
@@ -233,166 +205,43 @@ export default function AmbassadorDashboard() {
   );
 }
 
-function NavLink({
-  item,
-  active,
-  onClick,
-}: {
-  item: (typeof SECTIONS)[number];
-  active: boolean;
-  onClick: () => void;
-}) {
-  const Icon = item.icon;
-  return (
-    <button
-      onClick={onClick}
-      className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all"
-      style={{
-        background: active ? `linear-gradient(90deg, ${AMB.purple}26, transparent)` : "transparent",
-        color: active ? AMB.text : AMB.mute,
-        borderLeft: active ? `2px solid ${AMB.cyan}` : "2px solid transparent",
-      }}
-    >
-      <Icon className="h-4 w-4" style={{ color: active ? AMB.cyan : AMB.mute }} />
-      <span className="flex-1 text-left">{item.label}</span>
-      {active && <ChevronRight className="h-3.5 w-3.5" style={{ color: AMB.cyan }} />}
-    </button>
-  );
+function labelFor(k: Key): string {
+  const all = [...TABS, ...SECONDARY] as readonly { key: string; label: string }[];
+  return all.find((t) => t.key === k)?.label || "Back";
 }
-
-function BrandMark({ compact = false }: { compact?: boolean }) {
-  return (
-    <Link to="/" className="flex items-center gap-2.5">
-      <div className="relative">
-        <motion.div
-          className="absolute -inset-1 rounded-2xl opacity-70"
-          style={{ background: `conic-gradient(from 0deg, ${AMB.cyan}, ${AMB.amber}, ${AMB.purple}, ${AMB.cyan})`, filter: "blur(5px)" }}
-          animate={{ rotate: 360 }}
-          transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
-        />
-        <div
-          className="relative grid h-9 w-9 place-items-center rounded-xl"
-          style={{
-            background: `linear-gradient(135deg, ${AMB.cyan}, ${AMB.amber})`,
-            boxShadow: `0 6px 20px -6px ${AMB.cyan}`,
-          }}
-        >
-          <Sparkles className="h-4 w-4" style={{ color: "#1a0726" }} />
-        </div>
-      </div>
-      {!compact && (
-        <div className="leading-tight">
-          <div className="text-sm font-bold" style={{ color: AMB.text, fontFamily: "'Space Grotesk', sans-serif", letterSpacing: "-0.01em" }}>
-            ACRY Ambassador
-          </div>
-          <div className="text-[9px] font-semibold uppercase tracking-[0.24em]" style={{ color: AMB.amber }}>
-            AI Student OS
-          </div>
-        </div>
-      )}
-      {compact && (
-        <div className="text-sm font-bold" style={{ color: AMB.text, fontFamily: "'Space Grotesk', sans-serif" }}>
-          Ambassador<span style={{ color: AMB.amber }}>.OS</span>
-        </div>
-      )}
-    </Link>
-  );
-}
-
-function SectionHeader({ active }: { active: SectionKey }) {
-  const meta = SECTIONS.find((s) => s.key === active)!;
-  const Icon = meta.icon;
-  return (
-    <div className="mb-5 flex items-center gap-3">
-      <div
-        className="relative grid h-10 w-10 place-items-center rounded-xl"
-        style={{
-          background: `linear-gradient(135deg, ${AMB.cyan}33, ${AMB.amber}22)`,
-          border: `1px solid ${AMB.cyan}55`,
-          boxShadow: `0 6px 18px -8px ${AMB.cyan}`,
-        }}
-      >
-        <Icon className="h-4 w-4" style={{ color: AMB.amber }} />
-      </div>
-      <div>
-        <div className="text-[10px] font-semibold uppercase tracking-[0.22em]" style={{ color: AMB.cyan }}>
-          ACRY Ambassador OS
-        </div>
-        <div
-          className="text-xl font-bold"
-          style={{ color: AMB.text, fontFamily: "'Space Grotesk', sans-serif", letterSpacing: "-0.02em" }}
-        >
-          {meta.label}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ComingSoon({ section }: { section: string }) {
-  return (
-    <AmbCard className="p-10 text-center" glow={AMB.cyan} hud>
-      <div
-        className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl"
-        style={{ background: `linear-gradient(135deg, ${AMB.cyan}33, ${AMB.amber}22)`, border: `1px solid ${AMB.cyan}55` }}
-      >
-        <Sparkles className="h-6 w-6" style={{ color: AMB.amber }} />
-      </div>
-      <div className="text-lg font-bold" style={{ color: AMB.text, fontFamily: "'Space Grotesk', sans-serif" }}>
-        {section.charAt(0).toUpperCase() + section.slice(1)} — shipping next
-      </div>
-      <div className="mx-auto mt-2 max-w-md text-sm" style={{ color: AMB.mute }}>
-        This module is built and queued. Phase 2 unlocks Missions, Leaderboard, Rewards & Referrals. Phase 3 adds Workshops, Events
-        & Community. Phase 4 ships Training, Certificates, Analytics & Founder updates.
-      </div>
-    </AmbCard>
-  );
-}
-
-function FullScreen({ children }: { children: React.ReactNode }) {
-  return <div className="grid min-h-screen place-items-center">{children}</div>;
-}
-
 
 function PendingGate({ email }: { email: string }) {
   return (
     <div className="grid min-h-screen place-items-center px-4">
-      <AmbCard className="w-full max-w-lg p-7 text-center" glow={AMB.amber}>
-        <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl" style={{ background: `${AMB.amber}22`, border: `1px solid ${AMB.amber}40` }}>
-          <Trophy className="h-6 w-6" style={{ color: AMB.amber }} />
+      <Card glow={T.amber} className="w-full max-w-md p-6 text-center">
+        <div
+          className="mx-auto grid h-14 w-14 place-items-center rounded-2xl"
+          style={{ background: `${T.amber}22` }}
+        >
+          <Trophy className="h-6 w-6" style={{ color: T.amber }} />
         </div>
-        <div className="mt-4 text-xl font-bold" style={{ color: AMB.text }}>
+        <div className="mt-4 text-lg font-bold" style={{ color: T.text }}>
           Application under review
         </div>
-        <div className="mt-2 text-sm" style={{ color: AMB.mute }}>
-          We couldn't find an approved ambassador application for <span style={{ color: AMB.cyan }}>{email}</span>. Once our team
-          approves your application, this dashboard unlocks instantly.
+        <div className="mt-2 text-sm" style={{ color: T.mute }}>
+          We couldn't find an approved ambassador application for{" "}
+          <span style={{ color: T.cyan }}>{email}</span>. You'll unlock the dashboard once approved.
         </div>
-        <div className="mt-5 flex justify-center gap-3">
+        <div className="mt-5 flex justify-center gap-2">
           <Link to="/campus-ambassador">
-            <NeonButton variant="ghost">View blueprint</NeonButton>
+            <Btn variant="ghost">Learn more</Btn>
           </Link>
-          <NeonButton onClick={async () => { await supabase.auth.signOut(); window.location.reload(); }}>
+          <Btn
+            variant="primary"
+            onClick={async () => {
+              await supabase.auth.signOut();
+              window.location.reload();
+            }}
+          >
             Switch account
-          </NeonButton>
+          </Btn>
         </div>
-      </AmbCard>
+      </Card>
     </div>
-  );
-}
-
-function SignOutBtn() {
-  return (
-    <button
-      onClick={async () => {
-        await supabase.auth.signOut();
-        window.location.reload();
-      }}
-      className="mt-3 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm transition-colors hover:bg-white/5"
-      style={{ color: AMB.mute }}
-    >
-      <LogOut className="h-4 w-4" />
-      Sign out
-    </button>
   );
 }
