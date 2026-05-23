@@ -25,7 +25,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import { AmbAtmosphere, AmbParticles, AmbCard, AMB, NeonButton } from "@/components/ambassador/ui/primitives";
+import { AmbAtmosphere, AmbParticles, AmbCard, AMB, NeonButton, LiveDot } from "@/components/ambassador/ui/primitives";
 import { useAmbassador } from "@/components/ambassador/useAmbassador";
 import { WelcomeSection } from "@/components/ambassador/WelcomeSection";
 import { ProfileSection } from "@/components/ambassador/ProfileSection";
