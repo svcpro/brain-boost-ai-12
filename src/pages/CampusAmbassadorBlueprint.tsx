@@ -352,42 +352,8 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
         }}
       />
 
-      {/* Orbiting AI rings */}
-      <div className="absolute right-[-200px] top-1/2 -translate-y-1/2 hidden lg:block">
-        <div className="relative w-[700px] h-[700px]">
-          {[0, 1, 2].map((i) => (
-            <motion.div
-              key={i}
-              animate={{ rotate: 360 }}
-              transition={{ duration: 40 + i * 15, repeat: Infinity, ease: "linear" }}
-              className="absolute inset-0 rounded-full border border-white/[0.06]"
-              style={{ inset: i * 80 }}
-            >
-              <div
-                className="absolute w-3 h-3 rounded-full"
-                style={{
-                  top: "50%", left: 0, transform: "translate(-50%, -50%)",
-                  background: i === 0 ? "#22d3ee" : i === 1 ? "#a855f7" : "#3b82f6",
-                  boxShadow: `0 0 20px ${i === 0 ? "#22d3ee" : i === 1 ? "#a855f7" : "#3b82f6"}`,
-                }}
-              />
-            </motion.div>
-          ))}
-          {/* Core orb */}
-          <motion.div
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full"
-            style={{
-              background: "radial-gradient(circle, #a855f7, #3b82f6 50%, transparent 80%)",
-              filter: "blur(2px)",
-            }}
-          />
-        </div>
-      </div>
-
-      <motion.div style={{ y: yContent, opacity }} className="relative z-10 max-w-7xl mx-auto w-full grid lg:grid-cols-[1.3fr_1fr] gap-12 items-center">
-        <div className="text-center lg:text-left">
+      <motion.div style={{ y: yContent, opacity }} className="relative z-10 max-w-4xl mx-auto w-full flex flex-col items-center text-center">
+        <div className="text-center">
           {/* Live badge */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -415,17 +381,8 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
             className="text-[2.6rem] sm:text-5xl md:text-7xl lg:text-[5.2rem] font-bold tracking-tight leading-[1.02] mb-6"
           >
             <span className="text-white">Become an </span>
-            <span className="relative inline-block">
-              <span className="relative z-10 bg-gradient-to-r from-cyan-300 via-purple-400 to-blue-500 bg-clip-text text-transparent">
-                ACRY AI
-              </span>
-              <motion.span
-                aria-hidden
-                animate={{ x: ["-100%", "100%"] }}
-                transition={{ duration: 3, repeat: Infinity, repeatDelay: 2, ease: "easeInOut" }}
-                className="absolute inset-0 z-0 bg-gradient-to-r from-transparent via-white/40 to-transparent"
-                style={{ mixBlendMode: "overlay" }}
-              />
+            <span className="bg-gradient-to-r from-cyan-300 via-purple-400 to-blue-500 bg-clip-text text-transparent">
+              ACRY AI
             </span>
             <br />
             <span className="text-white">Campus </span>
@@ -436,7 +393,7 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
-            className="text-base md:text-xl text-white/70 max-w-xl lg:max-w-none mb-9 leading-relaxed mx-auto lg:mx-0"
+            className="text-base md:text-xl text-white/70 max-w-xl mb-9 leading-relaxed mx-auto"
           >
             Lead the AI revolution in your campus and become part of India's
             <span className="text-white font-semibold"> fastest-growing AI student network.</span>
@@ -447,7 +404,7 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.5 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-12"
+            className="flex flex-col sm:flex-row gap-4 justify-center mb-12"
           >
             <Magnetic>
               <button
@@ -486,7 +443,7 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.8, delay: 0.8 }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-2.5 max-w-2xl mx-auto lg:mx-0"
+            className="grid grid-cols-2 md:grid-cols-4 gap-2.5 max-w-2xl mx-auto"
           >
             {badges.map((b, i) => (
               <motion.div
@@ -503,71 +460,6 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
             ))}
           </motion.div>
         </div>
-
-        {/* Right column: holographic stack */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 40 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.4 }}
-          className="relative hidden lg:block"
-        >
-          <div className="relative space-y-4">
-            <TiltCard className="group">
-              <AITerminal />
-            </TiltCard>
-
-            {/* Floating stat card */}
-            <motion.div
-              animate={{ y: [0, -8, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute -left-12 -bottom-10 w-56"
-            >
-              <TiltCard className="group">
-                <Glass className="p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-cyan-400 flex items-center justify-center">
-                      <Atom className="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                      <div className="text-[10px] uppercase tracking-widest text-cyan-300 font-bold">Live</div>
-                      <div className="text-white text-sm font-bold">Network Pulse</div>
-                    </div>
-                  </div>
-                  <div className="flex items-end justify-between">
-                    <div>
-                      <div className="text-2xl font-black text-white">
-                        <Counter end={847} />
-                      </div>
-                      <div className="text-[10px] text-white/40 uppercase">apps / hour</div>
-                    </div>
-                    <div className="flex gap-0.5 items-end h-8">
-                      {[6, 10, 4, 14, 8, 18, 12, 22, 16, 26].map((h, i) => (
-                        <motion.div
-                          key={i}
-                          animate={{ height: [h, h * 1.4, h] }}
-                          transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.1 }}
-                          className="w-1 rounded-full bg-gradient-to-t from-purple-500 to-cyan-400"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </Glass>
-              </TiltCard>
-            </motion.div>
-
-            {/* Floating badge */}
-            <motion.div
-              animate={{ y: [0, 8, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-              className="absolute -right-8 -top-6"
-            >
-              <Glass className="px-3 py-2 flex items-center gap-2">
-                <Wand2 className="w-3.5 h-3.5 text-purple-300" />
-                <span className="text-xs font-bold text-white">AI-Powered</span>
-              </Glass>
-            </motion.div>
-          </div>
-        </motion.div>
       </motion.div>
 
       {/* Scroll cue */}
