@@ -33,6 +33,7 @@ import { MissionsSection } from "@/components/ambassador/MissionsSection";
 import { LeaderboardSection } from "@/components/ambassador/LeaderboardSection";
 import { RewardsSection } from "@/components/ambassador/RewardsSection";
 import { BadgesSection } from "@/components/ambassador/BadgesSection";
+import { TrainingSection } from "@/components/ambassador/TrainingSection";
 import { AmbassadorSignInGate } from "@/components/ambassador/AmbassadorSignInGate";
 
 
