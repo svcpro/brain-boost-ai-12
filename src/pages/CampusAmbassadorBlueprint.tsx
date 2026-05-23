@@ -393,7 +393,7 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
-            className="text-base md:text-xl text-white/70 max-w-xl lg:max-w-none mb-9 leading-relaxed mx-auto lg:mx-0"
+            className="text-base md:text-xl text-white/70 max-w-xl mb-9 leading-relaxed mx-auto"
           >
             Lead the AI revolution in your campus and become part of India's
             <span className="text-white font-semibold"> fastest-growing AI student network.</span>
@@ -404,7 +404,7 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.5 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-12"
+            className="flex flex-col sm:flex-row gap-4 justify-center mb-12"
           >
             <Magnetic>
               <button
