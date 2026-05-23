@@ -72,10 +72,27 @@ export function SimpleReferrals({ profile }: { profile: AmbassadorProfile }) {
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3">
         <Stat label="Total" value={stats.total} icon={<Users className="h-3.5 w-3.5" />} color={T.cyan} />
-        <Stat label="Active" value={stats.active} icon={<Users className="h-3.5 w-3.5" />} color={T.purple} />
+        <Stat label="Active" value={stats.active} icon={<Sparkles className="h-3.5 w-3.5" />} color={T.purple} />
         <Stat label="Paid" value={stats.paid} icon={<CheckCircle2 className="h-3.5 w-3.5" />} color={T.green} />
-        <Stat label="Earned" value={`₹${stats.earnings.toLocaleString()}`} icon={<IndianRupee className="h-3.5 w-3.5" />} color={T.amber} />
+        <Stat label="Conversions" value={stats.conversions} icon={<TrendingUp className="h-3.5 w-3.5" />} color={T.amber} />
       </div>
+
+      {/* Earnings strip */}
+      <Card className="flex items-center justify-between p-4">
+        <div>
+          <div className="text-[11px] uppercase tracking-wider" style={{ color: T.mute }}>Earned so far</div>
+          <div className="mt-0.5 text-xl font-bold" style={{ color: T.text }}>
+            ₹{stats.earnings.toLocaleString()}
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-[11px] uppercase tracking-wider" style={{ color: T.mute }}>Pending</div>
+          <div className="mt-0.5 text-xl font-bold" style={{ color: T.amber }}>
+            ₹{stats.pending.toLocaleString()}
+          </div>
+        </div>
+        <IndianRupee className="h-5 w-5" style={{ color: T.green }} />
+      </Card>
 
       {/* History */}
       <div>
