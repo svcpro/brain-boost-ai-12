@@ -33,6 +33,7 @@ import { MissionsSection } from "@/components/ambassador/MissionsSection";
 import { LeaderboardSection } from "@/components/ambassador/LeaderboardSection";
 import { RewardsSection } from "@/components/ambassador/RewardsSection";
 import { BadgesSection } from "@/components/ambassador/BadgesSection";
+import { TrainingSection } from "@/components/ambassador/TrainingSection";
 import { AmbassadorSignInGate } from "@/components/ambassador/AmbassadorSignInGate";
 
 
@@ -148,11 +149,12 @@ export default function AmbassadorDashboard() {
                 >
                   {active === "home" && <WelcomeSection profile={state.profile} />}
                   {active === "profile" && <ProfileSection profile={state.profile} onUpdated={refresh} />}
+                  {active === "training" && <TrainingSection profile={state.profile} />}
                   {active === "missions" && <MissionsSection profile={state.profile} />}
                   {active === "leaderboard" && <LeaderboardSection profile={state.profile} />}
                   {active === "rewards" && <RewardsSection profile={state.profile} />}
                   {active === "badges" && <BadgesSection profile={state.profile} />}
-                  {!["home","profile","missions","leaderboard","rewards","badges"].includes(active) && <ComingSoon section={active} />}
+                  {!["home","profile","training","missions","leaderboard","rewards","badges"].includes(active) && <ComingSoon section={active} />}
                 </motion.div>
               </AnimatePresence>
             </main>
