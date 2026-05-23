@@ -54,6 +54,7 @@ import SureShotAdminPanel from "@/components/admin/SureShotAdminPanel";
 import ComingSoonControlPanel from "@/components/admin/ComingSoonControlPanel";
 import AutopilotAdminPanel from "@/components/admin/AutopilotAdminPanel";
 import InstitutionManagement from "@/components/admin/InstitutionManagement";
+import CampusAmbassadorManagement from "@/components/admin/CampusAmbassadorManagement";
 import TeacherModeAdmin from "@/components/admin/TeacherModeAdmin";
 import STQEngineAdmin from "@/components/admin/ai-command/STQEngineAdmin";
 import ExamIntelligenceAdmin from "@/components/admin/ai-command/ExamIntelligenceAdmin";
