@@ -25,7 +25,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import { AmbAtmosphere, AmbParticles, AmbCard, AMB, NeonButton } from "@/components/ambassador/ui/primitives";
+import { AmbAtmosphere, AmbParticles, AmbCard, AMB, NeonButton, LiveDot } from "@/components/ambassador/ui/primitives";
 import { useAmbassador } from "@/components/ambassador/useAmbassador";
 import { WelcomeSection } from "@/components/ambassador/WelcomeSection";
 import { ProfileSection } from "@/components/ambassador/ProfileSection";
@@ -73,7 +73,7 @@ export default function AmbassadorDashboard() {
         <meta name="description" content="India's largest AI Student Leadership ecosystem. Track missions, climb the leaderboard, and lead your campus." />
       </Helmet>
 
-      <div className="relative min-h-screen overflow-x-hidden" style={{ color: AMB.text, fontFamily: "Inter, system-ui, sans-serif" }}>
+      <div className="relative min-h-screen overflow-x-hidden" style={{ color: AMB.text, fontFamily: "'DM Sans', 'Inter', system-ui, sans-serif" }}>
         <AmbAtmosphere />
         <AmbParticles />
 
@@ -104,12 +104,34 @@ export default function AmbassadorDashboard() {
                 <BrandMark compact />
                 <button
                   className="grid h-10 w-10 place-items-center rounded-xl border"
-                  style={{ borderColor: AMB.border, background: "rgba(255,255,255,0.04)" }}
+                  style={{ borderColor: AMB.border, background: "rgba(255,244,234,0.04)" }}
                   onClick={() => setNavOpen(true)}
                   aria-label="Open menu"
                 >
                   <Menu className="h-5 w-5" />
                 </button>
+              </div>
+
+              {/* Desktop HUD top strip */}
+              <div
+                className="mb-5 hidden items-center justify-between rounded-xl border px-4 py-2 lg:flex"
+                style={{
+                  borderColor: AMB.border,
+                  background: "linear-gradient(90deg, rgba(255,107,53,0.06), rgba(251,191,36,0.04), rgba(181,61,255,0.06))",
+                  backdropFilter: "blur(12px)",
+                }}
+              >
+                <div className="flex items-center gap-4 text-[10px] uppercase tracking-[0.18em]" style={{ color: AMB.mute }}>
+                  <LiveDot color={AMB.cyan} label="Ambassador OS · Online" />
+                  <span className="hidden xl:inline">Sector: India · Network healthy</span>
+                </div>
+                <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.18em]" style={{ color: AMB.mute }}>
+                  <span style={{ color: AMB.amber }}>{new Date().toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short" })}</span>
+                  <span>·</span>
+                  <span style={{ fontFamily: "'Space Grotesk', sans-serif", color: AMB.text }}>
+                    {new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </div>
               </div>
 
               <SectionHeader active={active} />
@@ -238,28 +260,36 @@ function NavLink({
 function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
     <Link to="/" className="flex items-center gap-2.5">
-      <div
-        className="grid h-9 w-9 place-items-center rounded-xl"
-        style={{
-          background: `linear-gradient(135deg, ${AMB.purple}, ${AMB.cyan})`,
-          boxShadow: `0 6px 20px -6px ${AMB.purple}`,
-        }}
-      >
-        <Sparkles className="h-4 w-4 text-white" />
+      <div className="relative">
+        <motion.div
+          className="absolute -inset-1 rounded-2xl opacity-70"
+          style={{ background: `conic-gradient(from 0deg, ${AMB.cyan}, ${AMB.amber}, ${AMB.purple}, ${AMB.cyan})`, filter: "blur(5px)" }}
+          animate={{ rotate: 360 }}
+          transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
+        />
+        <div
+          className="relative grid h-9 w-9 place-items-center rounded-xl"
+          style={{
+            background: `linear-gradient(135deg, ${AMB.cyan}, ${AMB.amber})`,
+            boxShadow: `0 6px 20px -6px ${AMB.cyan}`,
+          }}
+        >
+          <Sparkles className="h-4 w-4" style={{ color: "#1a0726" }} />
+        </div>
       </div>
       {!compact && (
         <div className="leading-tight">
-          <div className="text-sm font-bold" style={{ color: AMB.text }}>
+          <div className="text-sm font-bold" style={{ color: AMB.text, fontFamily: "'Space Grotesk', sans-serif", letterSpacing: "-0.01em" }}>
             ACRY Ambassador
           </div>
-          <div className="text-[10px] uppercase tracking-[0.2em]" style={{ color: AMB.cyan }}>
+          <div className="text-[9px] font-semibold uppercase tracking-[0.24em]" style={{ color: AMB.amber }}>
             AI Student OS
           </div>
         </div>
       )}
       {compact && (
-        <div className="text-sm font-bold" style={{ color: AMB.text }}>
-          Ambassador
+        <div className="text-sm font-bold" style={{ color: AMB.text, fontFamily: "'Space Grotesk', sans-serif" }}>
+          Ambassador<span style={{ color: AMB.amber }}>.OS</span>
         </div>
       )}
     </Link>
@@ -272,16 +302,23 @@ function SectionHeader({ active }: { active: SectionKey }) {
   return (
     <div className="mb-5 flex items-center gap-3">
       <div
-        className="grid h-9 w-9 place-items-center rounded-xl"
-        style={{ background: `${AMB.purple}26`, border: `1px solid ${AMB.purple}40` }}
+        className="relative grid h-10 w-10 place-items-center rounded-xl"
+        style={{
+          background: `linear-gradient(135deg, ${AMB.cyan}33, ${AMB.amber}22)`,
+          border: `1px solid ${AMB.cyan}55`,
+          boxShadow: `0 6px 18px -8px ${AMB.cyan}`,
+        }}
       >
-        <Icon className="h-4 w-4" style={{ color: AMB.cyan }} />
+        <Icon className="h-4 w-4" style={{ color: AMB.amber }} />
       </div>
       <div>
-        <div className="text-[10px] uppercase tracking-[0.18em]" style={{ color: AMB.mute }}>
-          Campus Ambassador
+        <div className="text-[10px] font-semibold uppercase tracking-[0.22em]" style={{ color: AMB.cyan }}>
+          ACRY Ambassador OS
         </div>
-        <div className="text-lg font-bold" style={{ color: AMB.text }}>
+        <div
+          className="text-xl font-bold"
+          style={{ color: AMB.text, fontFamily: "'Space Grotesk', sans-serif", letterSpacing: "-0.02em" }}
+        >
           {meta.label}
         </div>
       </div>
@@ -291,11 +328,14 @@ function SectionHeader({ active }: { active: SectionKey }) {
 
 function ComingSoon({ section }: { section: string }) {
   return (
-    <AmbCard className="p-10 text-center" glow={AMB.purple}>
-      <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl" style={{ background: `${AMB.purple}26` }}>
-        <Sparkles className="h-6 w-6" style={{ color: AMB.cyan }} />
+    <AmbCard className="p-10 text-center" glow={AMB.cyan} hud>
+      <div
+        className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl"
+        style={{ background: `linear-gradient(135deg, ${AMB.cyan}33, ${AMB.amber}22)`, border: `1px solid ${AMB.cyan}55` }}
+      >
+        <Sparkles className="h-6 w-6" style={{ color: AMB.amber }} />
       </div>
-      <div className="text-lg font-bold" style={{ color: AMB.text }}>
+      <div className="text-lg font-bold" style={{ color: AMB.text, fontFamily: "'Space Grotesk', sans-serif" }}>
         {section.charAt(0).toUpperCase() + section.slice(1)} — shipping next
       </div>
       <div className="mx-auto mt-2 max-w-md text-sm" style={{ color: AMB.mute }}>
