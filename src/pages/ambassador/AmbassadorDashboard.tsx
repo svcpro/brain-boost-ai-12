@@ -33,6 +33,7 @@ import { MissionsSection } from "@/components/ambassador/MissionsSection";
 import { LeaderboardSection } from "@/components/ambassador/LeaderboardSection";
 import { RewardsSection } from "@/components/ambassador/RewardsSection";
 import { BadgesSection } from "@/components/ambassador/BadgesSection";
+import { AmbassadorSignInGate } from "@/components/ambassador/AmbassadorSignInGate";
 
 
 const SECTIONS = [
@@ -78,7 +79,7 @@ export default function AmbassadorDashboard() {
         <AmbParticles />
 
         {state.kind === "loading" && <FullScreen><Loader2 className="h-8 w-8 animate-spin" style={{ color: AMB.cyan }} /></FullScreen>}
-        {state.kind === "anonymous" && <SignInGate />}
+        {state.kind === "anonymous" && <AmbassadorSignInGate />}
         {state.kind === "not_approved" && <PendingGate email={state.email} />}
 
         {state.kind === "ready" && (
@@ -350,55 +351,6 @@ function FullScreen({ children }: { children: React.ReactNode }) {
   return <div className="grid min-h-screen place-items-center">{children}</div>;
 }
 
-function SignInGate() {
-  const [email, setEmail] = useState("");
-  const [sending, setSending] = useState(false);
-
-  const sendLink = async () => {
-    if (!email) return toast.error("Enter your email");
-    setSending(true);
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${window.location.origin}/ambassador` },
-    });
-    setSending(false);
-    if (error) return toast.error(error.message);
-    toast.success("Magic link sent — check your email");
-  };
-
-  return (
-    <div className="grid min-h-screen place-items-center px-4">
-      <AmbCard className="w-full max-w-md p-7" glow={AMB.cyan}>
-        <BrandMark />
-        <div className="mt-5 text-xl font-bold" style={{ color: AMB.text }}>
-          Sign in to your Ambassador HQ
-        </div>
-        <div className="mt-1 text-sm" style={{ color: AMB.mute }}>
-          Use the email you applied with. We'll send you a magic link.
-        </div>
-        <div className="mt-5 flex items-center gap-2 rounded-xl border px-3 py-2" style={{ borderColor: AMB.border, background: "rgba(255,255,255,0.04)" }}>
-          <Mail className="h-4 w-4" style={{ color: AMB.mute }} />
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@college.edu"
-            className="w-full bg-transparent text-sm outline-none"
-            style={{ color: AMB.text }}
-          />
-        </div>
-        <NeonButton onClick={sendLink} disabled={sending} className="mt-4 w-full">
-          {sending ? "Sending…" : "Send magic link"}
-        </NeonButton>
-        <div className="mt-4 text-center text-xs" style={{ color: AMB.mute }}>
-          Not yet an ambassador?{" "}
-          <Link to="/campus-ambassador" style={{ color: AMB.cyan }}>
-            Apply here →
-          </Link>
-        </div>
-      </AmbCard>
-    </div>
-  );
-}
 
 function PendingGate({ email }: { email: string }) {
   return (
