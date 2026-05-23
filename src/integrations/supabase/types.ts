@@ -13344,6 +13344,23 @@ export type Database = {
       }
       gen_short_referral_code: { Args: never; Returns: string }
       generate_acry_api_key: { Args: never; Returns: string }
+      get_ambassador_leaderboard: {
+        Args: { p_limit?: number; p_period?: string }
+        Returns: {
+          ai_level: string
+          ambassador_id: string
+          avatar_url: string
+          badge_count: number
+          city: string
+          college: string
+          display_name: string
+          monthly_xp: number
+          public_slug: string
+          rank: number
+          weekly_xp: number
+          xp: number
+        }[]
+      }
       has_permission: {
         Args: { _permission: string; _user_id: string }
         Returns: boolean

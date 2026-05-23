@@ -29,6 +29,11 @@ import { AmbAtmosphere, AmbParticles, AmbCard, AMB, NeonButton } from "@/compone
 import { useAmbassador } from "@/components/ambassador/useAmbassador";
 import { WelcomeSection } from "@/components/ambassador/WelcomeSection";
 import { ProfileSection } from "@/components/ambassador/ProfileSection";
+import { MissionsSection } from "@/components/ambassador/MissionsSection";
+import { LeaderboardSection } from "@/components/ambassador/LeaderboardSection";
+import { RewardsSection } from "@/components/ambassador/RewardsSection";
+import { BadgesSection } from "@/components/ambassador/BadgesSection";
+
 
 const SECTIONS = [
   { key: "home", label: "Home", icon: LayoutDashboard },
@@ -38,9 +43,11 @@ const SECTIONS = [
   { key: "referrals", label: "Referrals", icon: Share2 },
   { key: "leaderboard", label: "Leaderboard", icon: Trophy },
   { key: "rewards", label: "Rewards", icon: Gift },
+  { key: "badges", label: "Badges", icon: Award },
   { key: "workshops", label: "Workshops", icon: Calendar },
   { key: "events", label: "Events", icon: Sparkles },
   { key: "community", label: "Community", icon: Users2 },
+
   { key: "certificates", label: "Certificates", icon: Award },
   { key: "analytics", label: "Analytics", icon: BarChart3 },
   { key: "founder", label: "Founder", icon: MessageCircle },
@@ -118,7 +125,11 @@ export default function AmbassadorDashboard() {
                 >
                   {active === "home" && <WelcomeSection profile={state.profile} />}
                   {active === "profile" && <ProfileSection profile={state.profile} onUpdated={refresh} />}
-                  {active !== "home" && active !== "profile" && <ComingSoon section={active} />}
+                  {active === "missions" && <MissionsSection profile={state.profile} />}
+                  {active === "leaderboard" && <LeaderboardSection profile={state.profile} />}
+                  {active === "rewards" && <RewardsSection profile={state.profile} />}
+                  {active === "badges" && <BadgesSection profile={state.profile} />}
+                  {!["home","profile","missions","leaderboard","rewards","badges"].includes(active) && <ComingSoon section={active} />}
                 </motion.div>
               </AnimatePresence>
             </main>
