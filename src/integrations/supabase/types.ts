@@ -355,6 +355,760 @@ export type Database = {
           },
         ]
       }
+      ambassador_certificates: {
+        Row: {
+          ambassador_id: string
+          cert_type: string
+          created_at: string
+          id: string
+          issued_at: string
+          title: string
+          url: string | null
+          user_id: string
+          verify_code: string
+        }
+        Insert: {
+          ambassador_id: string
+          cert_type?: string
+          created_at?: string
+          id?: string
+          issued_at?: string
+          title: string
+          url?: string | null
+          user_id: string
+          verify_code?: string
+        }
+        Update: {
+          ambassador_id?: string
+          cert_type?: string
+          created_at?: string
+          id?: string
+          issued_at?: string
+          title?: string
+          url?: string | null
+          user_id?: string
+          verify_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ambassador_certificates_ambassador_id_fkey"
+            columns: ["ambassador_id"]
+            isOneToOne: false
+            referencedRelation: "ambassador_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ambassador_community_posts: {
+        Row: {
+          ambassador_id: string | null
+          channel: string
+          content: string
+          created_at: string
+          id: string
+          is_announcement: boolean
+          is_pinned: boolean
+          media_url: string | null
+          reaction_count: number
+          user_id: string
+        }
+        Insert: {
+          ambassador_id?: string | null
+          channel?: string
+          content: string
+          created_at?: string
+          id?: string
+          is_announcement?: boolean
+          is_pinned?: boolean
+          media_url?: string | null
+          reaction_count?: number
+          user_id: string
+        }
+        Update: {
+          ambassador_id?: string | null
+          channel?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_announcement?: boolean
+          is_pinned?: boolean
+          media_url?: string | null
+          reaction_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ambassador_community_posts_ambassador_id_fkey"
+            columns: ["ambassador_id"]
+            isOneToOne: false
+            referencedRelation: "ambassador_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ambassador_event_rsvps: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ambassador_event_rsvps_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "ambassador_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ambassador_events: {
+        Row: {
+          capacity: number | null
+          cover_url: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          ends_at: string | null
+          id: string
+          is_published: boolean
+          location: string | null
+          registration_url: string | null
+          starts_at: string
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          capacity?: number | null
+          cover_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          is_published?: boolean
+          location?: string | null
+          registration_url?: string | null
+          starts_at: string
+          title: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          capacity?: number | null
+          cover_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          is_published?: boolean
+          location?: string | null
+          registration_url?: string | null
+          starts_at?: string
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ambassador_founder_updates: {
+        Row: {
+          created_at: string
+          id: string
+          is_pinned: boolean
+          message: string | null
+          published_at: string
+          thumbnail_url: string | null
+          title: string
+          video_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_pinned?: boolean
+          message?: string | null
+          published_at?: string
+          thumbnail_url?: string | null
+          title: string
+          video_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_pinned?: boolean
+          message?: string | null
+          published_at?: string
+          thumbnail_url?: string | null
+          title?: string
+          video_url?: string | null
+        }
+        Relationships: []
+      }
+      ambassador_mission_submissions: {
+        Row: {
+          ambassador_id: string
+          awarded_points: number | null
+          awarded_xp: number | null
+          created_at: string
+          id: string
+          mission_id: string
+          proof_text: string | null
+          proof_url: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewer_notes: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ambassador_id: string
+          awarded_points?: number | null
+          awarded_xp?: number | null
+          created_at?: string
+          id?: string
+          mission_id: string
+          proof_text?: string | null
+          proof_url?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_notes?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ambassador_id?: string
+          awarded_points?: number | null
+          awarded_xp?: number | null
+          created_at?: string
+          id?: string
+          mission_id?: string
+          proof_text?: string | null
+          proof_url?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_notes?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ambassador_mission_submissions_ambassador_id_fkey"
+            columns: ["ambassador_id"]
+            isOneToOne: false
+            referencedRelation: "ambassador_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ambassador_mission_submissions_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "ambassador_missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ambassador_missions: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          difficulty: string
+          ends_at: string | null
+          id: string
+          is_published: boolean
+          is_weekly: boolean
+          max_submissions: number | null
+          proof_type: string
+          reward_points: number
+          reward_xp: number
+          starts_at: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          difficulty?: string
+          ends_at?: string | null
+          id?: string
+          is_published?: boolean
+          is_weekly?: boolean
+          max_submissions?: number | null
+          proof_type?: string
+          reward_points?: number
+          reward_xp?: number
+          starts_at?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          difficulty?: string
+          ends_at?: string | null
+          id?: string
+          is_published?: boolean
+          is_weekly?: boolean
+          max_submissions?: number | null
+          proof_type?: string
+          reward_points?: number
+          reward_xp?: number
+          starts_at?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ambassador_module_progress: {
+        Row: {
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          id: string
+          module_id: string
+          progress_pct: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          module_id: string
+          progress_pct?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          module_id?: string
+          progress_pct?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ambassador_module_progress_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "ambassador_training_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ambassador_post_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ambassador_post_reactions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "ambassador_community_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ambassador_profiles: {
+        Row: {
+          ai_level: string
+          ambassador_code: string | null
+          application_id: string | null
+          avatar_url: string | null
+          badges: Json
+          bio: string | null
+          city: string | null
+          college: string | null
+          course: string | null
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          instagram: string | null
+          joined_at: string
+          last_active_at: string | null
+          linkedin: string | null
+          longest_streak: number
+          monthly_xp: number
+          points: number
+          public_slug: string | null
+          rank: number | null
+          skills: string[] | null
+          status: string
+          streak_days: number
+          twitter: string | null
+          updated_at: string
+          user_id: string | null
+          website: string | null
+          weekly_xp: number
+          xp: number
+          youtube: string | null
+        }
+        Insert: {
+          ai_level?: string
+          ambassador_code?: string | null
+          application_id?: string | null
+          avatar_url?: string | null
+          badges?: Json
+          bio?: string | null
+          city?: string | null
+          college?: string | null
+          course?: string | null
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          instagram?: string | null
+          joined_at?: string
+          last_active_at?: string | null
+          linkedin?: string | null
+          longest_streak?: number
+          monthly_xp?: number
+          points?: number
+          public_slug?: string | null
+          rank?: number | null
+          skills?: string[] | null
+          status?: string
+          streak_days?: number
+          twitter?: string | null
+          updated_at?: string
+          user_id?: string | null
+          website?: string | null
+          weekly_xp?: number
+          xp?: number
+          youtube?: string | null
+        }
+        Update: {
+          ai_level?: string
+          ambassador_code?: string | null
+          application_id?: string | null
+          avatar_url?: string | null
+          badges?: Json
+          bio?: string | null
+          city?: string | null
+          college?: string | null
+          course?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          instagram?: string | null
+          joined_at?: string
+          last_active_at?: string | null
+          linkedin?: string | null
+          longest_streak?: number
+          monthly_xp?: number
+          points?: number
+          public_slug?: string | null
+          rank?: number | null
+          skills?: string[] | null
+          status?: string
+          streak_days?: number
+          twitter?: string | null
+          updated_at?: string
+          user_id?: string | null
+          website?: string | null
+          weekly_xp?: number
+          xp?: number
+          youtube?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ambassador_profiles_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: true
+            referencedRelation: "campus_ambassador_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ambassador_referrals: {
+        Row: {
+          ambassador_id: string
+          converted: boolean
+          converted_at: string | null
+          created_at: string
+          id: string
+          is_paid: boolean
+          referred_email: string | null
+          referred_user_id: string | null
+          source: string | null
+          user_id: string
+        }
+        Insert: {
+          ambassador_id: string
+          converted?: boolean
+          converted_at?: string | null
+          created_at?: string
+          id?: string
+          is_paid?: boolean
+          referred_email?: string | null
+          referred_user_id?: string | null
+          source?: string | null
+          user_id: string
+        }
+        Update: {
+          ambassador_id?: string
+          converted?: boolean
+          converted_at?: string | null
+          created_at?: string
+          id?: string
+          is_paid?: boolean
+          referred_email?: string | null
+          referred_user_id?: string | null
+          source?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ambassador_referrals_ambassador_id_fkey"
+            columns: ["ambassador_id"]
+            isOneToOne: false
+            referencedRelation: "ambassador_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ambassador_reward_claims: {
+        Row: {
+          ambassador_id: string
+          created_at: string
+          delivered_at: string | null
+          id: string
+          reward_id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          ambassador_id: string
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          reward_id: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          ambassador_id?: string
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          reward_id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ambassador_reward_claims_ambassador_id_fkey"
+            columns: ["ambassador_id"]
+            isOneToOne: false
+            referencedRelation: "ambassador_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ambassador_reward_claims_reward_id_fkey"
+            columns: ["reward_id"]
+            isOneToOne: false
+            referencedRelation: "ambassador_rewards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ambassador_rewards: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          is_active: boolean
+          reward_type: string
+          tier: string
+          title: string
+          unlock_xp: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          reward_type?: string
+          tier?: string
+          title: string
+          unlock_xp?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          reward_type?: string
+          tier?: string
+          title?: string
+          unlock_xp?: number
+        }
+        Relationships: []
+      }
+      ambassador_training_modules: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          duration_minutes: number | null
+          id: string
+          is_published: boolean
+          order_index: number | null
+          pdf_url: string | null
+          title: string
+          unlock_xp: number | null
+          video_url: string | null
+          xp_reward: number | null
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          is_published?: boolean
+          order_index?: number | null
+          pdf_url?: string | null
+          title: string
+          unlock_xp?: number | null
+          video_url?: string | null
+          xp_reward?: number | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          is_published?: boolean
+          order_index?: number | null
+          pdf_url?: string | null
+          title?: string
+          unlock_xp?: number | null
+          video_url?: string | null
+          xp_reward?: number | null
+        }
+        Relationships: []
+      }
+      ambassador_workshops: {
+        Row: {
+          admin_notes: string | null
+          ambassador_id: string
+          city: string | null
+          college: string
+          completed_at: string | null
+          created_at: string
+          expected_attendance: number | null
+          faculty_contact: string | null
+          id: string
+          reward_xp: number | null
+          scheduled_for: string | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+          venue: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          ambassador_id: string
+          city?: string | null
+          college: string
+          completed_at?: string | null
+          created_at?: string
+          expected_attendance?: number | null
+          faculty_contact?: string | null
+          id?: string
+          reward_xp?: number | null
+          scheduled_for?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          venue?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          ambassador_id?: string
+          city?: string | null
+          college?: string
+          completed_at?: string | null
+          created_at?: string
+          expected_attendance?: number | null
+          faculty_contact?: string | null
+          id?: string
+          reward_xp?: number | null
+          scheduled_for?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          venue?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ambassador_workshops_ambassador_id_fkey"
+            columns: ["ambassador_id"]
+            isOneToOne: false
+            referencedRelation: "ambassador_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       api_endpoints: {
         Row: {
           avg_latency_ms: number | null
@@ -12535,6 +13289,49 @@ export type Database = {
         Returns: {
           table_name: string
         }[]
+      }
+      claim_ambassador_profile: {
+        Args: never
+        Returns: {
+          ai_level: string
+          ambassador_code: string | null
+          application_id: string | null
+          avatar_url: string | null
+          badges: Json
+          bio: string | null
+          city: string | null
+          college: string | null
+          course: string | null
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          instagram: string | null
+          joined_at: string
+          last_active_at: string | null
+          linkedin: string | null
+          longest_streak: number
+          monthly_xp: number
+          points: number
+          public_slug: string | null
+          rank: number | null
+          skills: string[] | null
+          status: string
+          streak_days: number
+          twitter: string | null
+          updated_at: string
+          user_id: string | null
+          website: string | null
+          weekly_xp: number
+          xp: number
+          youtube: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "ambassador_profiles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       cleanup_rate_limits: { Args: never; Returns: undefined }
       delete_email: {
