@@ -2835,6 +2835,7 @@ const CampusAmbassadorBlueprint = () => {
         <Metrics />
         <Testimonials />
         <Path />
+        <Leaderboard />
         <Form formRef={formRef} />
         <FAQ />
         <FinalCTA scrollToForm={scrollToForm} />
