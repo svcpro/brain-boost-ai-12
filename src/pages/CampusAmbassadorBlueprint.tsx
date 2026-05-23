@@ -3006,7 +3006,7 @@ const FinalCTA = ({ scrollToForm }: { scrollToForm: () => void }) => {
                     />
                   </svg>
                   <span className="text-xs font-semibold tracking-[0.2em] uppercase" style={{ color: INDIGO.glow, ...fontBody }}>
-                    Abhinav Tripathi
+                    Santosh V Chandra
                   </span>
                   <span className="text-[11px] text-white/40 mt-1" style={fontBody}>
                     Founder & CEO, ACRY.ai
