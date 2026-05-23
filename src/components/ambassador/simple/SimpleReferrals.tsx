@@ -1,14 +1,13 @@
 import { Btn, Card, SectionTitle, Stat, T } from "./ui";
 import type { AmbassadorProfile } from "../useAmbassador";
 import { useReferralHandle } from "@/hooks/useReferralHandle";
+import { useReferralStats } from "./useReferralStats";
 import { Copy, Share2, MessageCircle, Send, Instagram, Users, CheckCircle2, IndianRupee } from "lucide-react";
 import { toast } from "sonner";
 
 export function SimpleReferrals({ profile }: { profile: AmbassadorProfile }) {
   const { shareUrl } = useReferralHandle();
-  const refs = profile.points || 0;
-  const paid = Math.floor(refs * 0.4);
-  const active = refs - paid;
+  const stats = useReferralStats(profile.user_id);
 
   const insta = `🚀 Level up your prep with ACRY AI — India's smartest study app.\nUse my link: ${shareUrl}`;
 
@@ -72,16 +71,20 @@ export function SimpleReferrals({ profile }: { profile: AmbassadorProfile }) {
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3">
-        <Stat label="Total" value={refs} icon={<Users className="h-3.5 w-3.5" />} color={T.cyan} />
-        <Stat label="Active" value={active} icon={<Users className="h-3.5 w-3.5" />} color={T.purple} />
-        <Stat label="Paid" value={paid} icon={<CheckCircle2 className="h-3.5 w-3.5" />} color={T.green} />
-        <Stat label="Earned" value={`₹${(paid * 50).toLocaleString()}`} icon={<IndianRupee className="h-3.5 w-3.5" />} color={T.amber} />
+        <Stat label="Total" value={stats.total} icon={<Users className="h-3.5 w-3.5" />} color={T.cyan} />
+        <Stat label="Active" value={stats.active} icon={<Users className="h-3.5 w-3.5" />} color={T.purple} />
+        <Stat label="Paid" value={stats.paid} icon={<CheckCircle2 className="h-3.5 w-3.5" />} color={T.green} />
+        <Stat label="Earned" value={`₹${stats.earnings.toLocaleString()}`} icon={<IndianRupee className="h-3.5 w-3.5" />} color={T.amber} />
       </div>
 
       {/* History */}
       <div>
         <SectionTitle title="Recent joins" />
-        {refs === 0 ? (
+        {stats.loading ? (
+          <Card className="py-8 text-center">
+            <div className="text-sm" style={{ color: T.mute }}>Loading…</div>
+          </Card>
+        ) : stats.recent.length === 0 ? (
           <Card className="py-8 text-center">
             <div className="text-sm" style={{ color: T.mute }}>
               No referrals yet. Share your link to get started 🚀
@@ -89,35 +92,41 @@ export function SimpleReferrals({ profile }: { profile: AmbassadorProfile }) {
           </Card>
         ) : (
           <div className="space-y-2">
-            {Array.from({ length: Math.min(5, refs) }).map((_, i) => (
-              <Card key={i} className="flex items-center justify-between py-3">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="grid h-9 w-9 place-items-center rounded-full text-xs font-bold"
-                    style={{ background: `${T.purple}33`, color: T.text }}
+            {stats.recent.map((r) => {
+              const name = r.referred_email?.split("@")[0] || "Student";
+              const days = Math.max(
+                0,
+                Math.floor((Date.now() - new Date(r.created_at).getTime()) / 86_400_000)
+              );
+              const status = r.is_paid ? "Paid" : r.converted ? "Active" : "Joined";
+              const color = r.is_paid ? T.green : r.converted ? T.cyan : T.amber;
+              return (
+                <Card key={r.id} className="flex items-center justify-between py-3">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="grid h-9 w-9 place-items-center rounded-full text-xs font-bold uppercase"
+                      style={{ background: `${T.purple}33`, color: T.text }}
+                    >
+                      {name.slice(0, 2)}
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium" style={{ color: T.text }}>
+                        {name}
+                      </div>
+                      <div className="text-[11px]" style={{ color: T.mute }}>
+                        {days === 0 ? "Today" : `${days}d ago`}
+                      </div>
+                    </div>
+                  </div>
+                  <span
+                    className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                    style={{ background: `${color}22`, color }}
                   >
-                    {String.fromCharCode(65 + (i % 26))}
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium" style={{ color: T.text }}>
-                      Student {i + 1}
-                    </div>
-                    <div className="text-[11px]" style={{ color: T.mute }}>
-                      Joined {i + 1}d ago
-                    </div>
-                  </div>
-                </div>
-                <span
-                  className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                  style={{
-                    background: i < paid ? `${T.green}22` : `${T.amber}22`,
-                    color: i < paid ? T.green : T.amber,
-                  }}
-                >
-                  {i < paid ? "Paid" : "Active"}
-                </span>
-              </Card>
-            ))}
+                    {status}
+                  </span>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
