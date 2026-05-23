@@ -61,6 +61,7 @@ const InstituteLoginPage = lazy(() => import("./pages/InstituteLoginPage"));
 const InstituteSignupPage = lazy(() => import("./pages/InstituteSignupPage"));
 const InstituteJoinPage = lazy(() => import("./pages/InstituteJoinPage"));
 const CampusAmbassadorBlueprint = lazy(() => import("./pages/CampusAmbassadorBlueprint"));
+const AmbassadorDashboard = lazy(() => import("./pages/ambassador/AmbassadorDashboard"));
 const UnsubscribePage = lazy(() => import("./pages/UnsubscribePage"));
 
 // Lazy load heavy components
