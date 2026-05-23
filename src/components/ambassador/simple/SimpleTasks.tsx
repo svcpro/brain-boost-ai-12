@@ -204,16 +204,6 @@ export function SimpleTasks() {
             The AI auto-assigns 3 fresh tasks every week.
           </div>
         </Card>
-      ) : tasks.length === 0 ? (
-        <Card className="p-6 text-center space-y-3">
-          <Sparkles className="mx-auto h-6 w-6" style={{ color: T.purple }} />
-          <div className="text-sm" style={{ color: T.text }}>
-            No tasks yet for this week.
-          </div>
-          <Btn onClick={() => load(true)} variant="primary" size="sm">
-            Generate my tasks
-          </Btn>
-        </Card>
       ) : (
         <div className="space-y-2.5">
           {tasks.map((t) => {
