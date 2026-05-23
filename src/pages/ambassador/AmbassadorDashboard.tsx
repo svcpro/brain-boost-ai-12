@@ -73,7 +73,7 @@ export default function AmbassadorDashboard() {
         <meta name="description" content="India's largest AI Student Leadership ecosystem. Track missions, climb the leaderboard, and lead your campus." />
       </Helmet>
 
-      <div className="relative min-h-screen overflow-x-hidden" style={{ color: AMB.text, fontFamily: "Inter, system-ui, sans-serif" }}>
+      <div className="relative min-h-screen overflow-x-hidden" style={{ color: AMB.text, fontFamily: "'DM Sans', 'Inter', system-ui, sans-serif" }}>
         <AmbAtmosphere />
         <AmbParticles />
 
