@@ -336,7 +336,7 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
   return (
     <section className="relative min-h-[100dvh] flex items-center overflow-hidden pt-28 pb-24 px-6">
       {/* Layered backdrop */}
-      <motion.div style={{ y: yBg }} className="absolute inset-1">
+      <motion.div style={{ y: yBg }} className="absolute inset-0">
         <AuroraMesh />
         <NeuralNetCanvas />
       </motion.div>
