@@ -147,7 +147,7 @@ export function SimpleTasks() {
               style={{ color: T.mute }}
             >
               <Brain className="h-3 w-3" style={{ color: T.purple }} />
-              AI Mission Brief · This week
+              AI Mission Brief · Auto-assigned weekly
             </div>
             <div className="mt-1 text-xl font-bold" style={{ color: T.text }}>
               {completed} / {tasks.length || 3} done
@@ -156,20 +156,13 @@ export function SimpleTasks() {
               </span>
             </div>
           </div>
-          <button
-            onClick={() => load(true)}
-            disabled={generating}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl disabled:opacity-50"
+          <div
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl"
             style={{ background: `${T.purple}22`, border: `1px solid ${T.purple}55` }}
-            aria-label="Regenerate tasks"
-            title="Regenerate AI tasks"
+            title="AI-automated weekly tasks"
           >
-            {generating ? (
-              <Loader2 className="h-4 w-4 animate-spin" style={{ color: T.purple }} />
-            ) : (
-              <RefreshCcw className="h-4 w-4" style={{ color: T.purple }} />
-            )}
-          </button>
+            <Sparkles className="h-4 w-4" style={{ color: T.purple }} />
+          </div>
         </div>
         <div
           className="mt-3 h-1.5 w-full overflow-hidden rounded-full"
@@ -189,7 +182,7 @@ export function SimpleTasks() {
         title="AI-assigned tasks"
         action={
           <span className="text-[10px]" style={{ color: T.mute }}>
-            Auto-refreshes weekly
+            Auto-refreshes every Monday
           </span>
         }
       />
@@ -198,18 +191,18 @@ export function SimpleTasks() {
         <Card className="p-6 text-center">
           <Loader2 className="mx-auto h-5 w-5 animate-spin" style={{ color: T.mute }} />
           <div className="mt-2 text-xs" style={{ color: T.mute }}>
-            Crafting your tasks…
+            AI is crafting your tasks…
           </div>
         </Card>
       ) : tasks.length === 0 ? (
-        <Card className="p-6 text-center space-y-3">
+        <Card className="p-6 text-center space-y-2">
           <Sparkles className="mx-auto h-6 w-6" style={{ color: T.purple }} />
           <div className="text-sm" style={{ color: T.text }}>
-            No tasks yet for this week.
+            New tasks will appear shortly.
           </div>
-          <Btn onClick={() => load(true)} variant="primary" size="sm">
-            Generate my tasks
-          </Btn>
+          <div className="text-[11px]" style={{ color: T.mute }}>
+            The AI auto-assigns 3 fresh tasks every week.
+          </div>
         </Card>
       ) : (
         <div className="space-y-2.5">

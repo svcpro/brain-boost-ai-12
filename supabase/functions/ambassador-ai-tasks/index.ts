@@ -116,6 +116,54 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const body = await req.json().catch(() => ({}));
+    const action = body.action ?? "list";
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+    const weekKey = getWeekKey();
+
+    // === CRON: auto-generate tasks for every ambassador ===
+    // Idempotent — skips ambassadors that already have >=3 tasks for the week.
+    if (action === "cron_generate_all") {
+      const { data: ambs } = await admin
+        .from("ambassador_profiles")
+        .select("user_id, full_name, college, city, ai_level, xp, weekly_xp")
+        .in("status", ["active", "approved"]);
+
+      let generated = 0;
+      for (const amb of ambs ?? []) {
+        const { count } = await admin
+          .from("ambassador_tasks")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", amb.user_id)
+          .eq("week_key", weekKey);
+        if ((count ?? 0) >= 3) continue;
+
+        const { data: refs } = await admin
+          .from("ambassador_referrals")
+          .select("status")
+          .eq("ambassador_user_id", amb.user_id);
+        const stats = {
+          total: refs?.length ?? 0,
+          active: refs?.filter((r: any) => r.status === "active").length ?? 0,
+          paid: refs?.filter((r: any) => r.status === "paid").length ?? 0,
+        };
+        const aiTasks = await generateAITasks(amb, stats);
+        await admin.from("ambassador_tasks").insert(
+          aiTasks.map((t: any) => ({
+            user_id: amb.user_id, week_key: weekKey,
+            title: t.title, description: t.description, category: t.category,
+            priority: t.priority, reward_points: t.reward_points,
+            requires_proof: t.requires_proof, estimated_minutes: t.estimated_minutes,
+            ai_reasoning: t.ai_reasoning,
+          }))
+        );
+        generated++;
+      }
+      return new Response(JSON.stringify({ ok: true, generated, week_key: weekKey }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const auth = req.headers.get("Authorization");
     if (!auth) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
@@ -126,10 +174,8 @@ Deno.serve(async (req) => {
     const user = userData?.user;
     if (!user) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
-    const body = await req.json().catch(() => ({}));
-    const action = body.action ?? "list";
-    const weekKey = getWeekKey();
+
+
 
     if (action === "list" || action === "generate") {
       const { data: existing } = await admin
