@@ -796,7 +796,7 @@ const ApplicationForm = ({ formRef }: { formRef: React.RefObject<HTMLDivElement>
   const progress = ((step + 1) / steps.length) * 100;
 
   const validateStep = () => {
-    const fields = steps[step].fields;
+    const fields = steps[step].fields as any[];
     for (const f of fields) {
       const v = (data as any)[f.name];
       if (f.required && (!v || !v.trim())) {
@@ -821,10 +821,13 @@ const ApplicationForm = ({ formRef }: { formRef: React.RefObject<HTMLDivElement>
     }
     setSubmitting(true);
     try {
-      const { error } = await supabase.from("campus_ambassador_applications").insert({
+      const payload: any = {
         ...parsed.data,
         user_agent: navigator.userAgent.slice(0, 500),
-      });
+      };
+      const { error } = await supabase
+        .from("campus_ambassador_applications")
+        .insert(payload);
       if (error) throw error;
       setSubmitted(true);
       toast.success("Application submitted! 🎉");
