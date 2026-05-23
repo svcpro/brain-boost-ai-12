@@ -15,7 +15,7 @@ import { z } from "zod";
 
 /* ═════════════════════════════════════════════════════════════════════
    ACRY.ai CAMPUS AMBASSADOR — Midnight Indigo Edition
-   Palette: #0a0a1a · #141432 · #1e1e5a · #4f46e5
+   Palette: #031f1a · #064e3b · #0d7a5f · #10b981
    Type:    Space Grotesk (display) · DM Sans (body)
    Layout:  Hero + Card Grid · user-focused, conversion-led
    ═════════════════════════════════════════════════════════════════════ */
