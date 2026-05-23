@@ -381,17 +381,8 @@ const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
             className="text-[2.6rem] sm:text-5xl md:text-7xl lg:text-[5.2rem] font-bold tracking-tight leading-[1.02] mb-6"
           >
             <span className="text-white">Become an </span>
-            <span className="relative inline-block">
-              <span className="relative z-10 bg-gradient-to-r from-cyan-300 via-purple-400 to-blue-500 bg-clip-text text-transparent">
-                ACRY AI
-              </span>
-              <motion.span
-                aria-hidden
-                animate={{ x: ["-100%", "100%"] }}
-                transition={{ duration: 3, repeat: Infinity, repeatDelay: 2, ease: "easeInOut" }}
-                className="absolute inset-0 z-0 bg-gradient-to-r from-transparent via-white/40 to-transparent"
-                style={{ mixBlendMode: "overlay" }}
-              />
+            <span className="bg-gradient-to-r from-cyan-300 via-purple-400 to-blue-500 bg-clip-text text-transparent">
+              ACRY AI
             </span>
             <br />
             <span className="text-white">Campus </span>
