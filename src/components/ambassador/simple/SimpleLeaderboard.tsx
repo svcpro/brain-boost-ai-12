@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, T } from "./ui";
 import type { AmbassadorProfile } from "../useAmbassador";
-import { supabase } from "/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import { Trophy, Medal, Crown } from "lucide-react";
 
 type Row = {
