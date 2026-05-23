@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState, useMemo, lazy, Suspense } from "react";
-import { motion, AnimatePresence, useScroll, useTransform, useInView } from "framer-motion";
+import { useEffect, useRef, useState, useMemo } from "react";
+import { motion, AnimatePresence, useScroll, useTransform, useInView, useMotionValue, useSpring } from "framer-motion";
 import {
   Rocket, Play, Sparkles, Zap, Shield, Trophy, Users, GraduationCap,
   Award, Network, Briefcase, Star, MessageCircle, ArrowRight, Check,
   ChevronDown, MapPin, Calendar, TrendingUp, Brain, Mic, Globe,
   Send, User, Phone, Mail, School, BookOpen, Instagram, Linkedin,
-  Heart, Crown, Flame, Target, Layers,
+  Heart, Crown, Flame, Target, Cpu, Terminal, Atom, Wand2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,81 +13,266 @@ import { toast } from "sonner";
 import SEO from "@/components/SEO";
 import { z } from "zod";
 
-// ─── Color tokens (page-local, mapped to design system) ──
-// black bg, deep blue, electric purple, neon cyan accents
+/* ═══════════════════════════════════════════════════════════
+   ULTRA-ADVANCED VISUAL LAYER
+   ═══════════════════════════════════════════════════════════ */
 
-// ─── Floating AI Particles ───────────────────────────────
-const AIParticles = () => {
-  const particles = useMemo(
-    () =>
-      Array.from({ length: 28 }, (_, i) => ({
-        id: i,
-        x: Math.random() * 100,
-        y: Math.random() * 100,
-        size: Math.random() * 3 + 1,
-        duration: Math.random() * 10 + 8,
-        delay: Math.random() * 5,
-        opacity: Math.random() * 0.5 + 0.15,
-        color: i % 3 === 0 ? "#22d3ee" : i % 3 === 1 ? "#a855f7" : "#3b82f6",
-      })),
-    [],
-  );
+/* Live neural network — canvas, particles + auto-connecting lines */
+const NeuralNetCanvas = () => {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const c = ref.current!;
+    const ctx = c.getContext("2d")!;
+    let raf = 0;
+    let w = 0, h = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const resize = () => {
+      w = c.clientWidth; h = c.clientHeight;
+      c.width = w * dpr; c.height = h * dpr;
+      ctx.scale(dpr, dpr);
+    };
+    resize();
+    window.addEventListener("resize", () => { dpr = Math.min(window.devicePixelRatio || 1, 2); resize(); });
+
+    const count = Math.max(40, Math.min(90, Math.floor((w * h) / 22000)));
+    const nodes = Array.from({ length: count }, () => ({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      r: Math.random() * 1.6 + 0.6,
+      hue: Math.random() > 0.5 ? 280 : 190, // purple / cyan
+    }));
+    const mouse = { x: -9999, y: -9999 };
+    const onMove = (e: MouseEvent) => {
+      const rect = c.getBoundingClientRect();
+      mouse.x = e.clientX - rect.left;
+      mouse.y = e.clientY - rect.top;
+    };
+    window.addEventListener("mousemove", onMove);
+
+    const loop = () => {
+      ctx.clearRect(0, 0, w, h);
+      for (const n of nodes) {
+        n.x += n.vx; n.y += n.vy;
+        if (n.x < 0 || n.x > w) n.vx *= -1;
+        if (n.y < 0 || n.y > h) n.vy *= -1;
+        // mouse repel
+        const dx = n.x - mouse.x, dy = n.y - mouse.y, d = Math.hypot(dx, dy);
+        if (d < 120) { n.x += (dx / d) * 0.7; n.y += (dy / d) * 0.7; }
+      }
+      // connections
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i], b = nodes[j];
+          const d = Math.hypot(a.x - b.x, a.y - b.y);
+          if (d < 130) {
+            const alpha = (1 - d / 130) * 0.35;
+            const hue = (a.hue + b.hue) / 2;
+            ctx.strokeStyle = `hsla(${hue}, 90%, 60%, ${alpha})`;
+            ctx.lineWidth = 0.6;
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+          }
+        }
+      }
+      // nodes
+      for (const n of nodes) {
+        const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r * 6);
+        g.addColorStop(0, `hsla(${n.hue}, 100%, 70%, 0.9)`);
+        g.addColorStop(1, `hsla(${n.hue}, 100%, 70%, 0)`);
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.r * 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = `hsla(${n.hue}, 100%, 80%, 0.95)`;
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    loop();
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("mousemove", onMove);
+    };
+  }, []);
+  return <canvas ref={ref} className="absolute inset-0 w-full h-full pointer-events-none" />;
+};
+
+/* Aurora mesh background — slow drifting blobs */
+const AuroraMesh = () => (
+  <div className="absolute inset-0 overflow-hidden pointer-events-none">
+    <motion.div
+      animate={{ x: [0, 80, -40, 0], y: [0, -60, 40, 0] }}
+      transition={{ duration: 24, repeat: Infinity, ease: "easeInOut" }}
+      className="absolute -top-40 -left-40 w-[60rem] h-[60rem] rounded-full"
+      style={{ background: "radial-gradient(circle, rgba(168,85,247,0.18), transparent 60%)", filter: "blur(40px)" }}
+    />
+    <motion.div
+      animate={{ x: [0, -100, 60, 0], y: [0, 80, -40, 0] }}
+      transition={{ duration: 28, repeat: Infinity, ease: "easeInOut" }}
+      className="absolute top-1/3 -right-40 w-[55rem] h-[55rem] rounded-full"
+      style={{ background: "radial-gradient(circle, rgba(34,211,238,0.15), transparent 60%)", filter: "blur(40px)" }}
+    />
+    <motion.div
+      animate={{ x: [0, 60, -60, 0], y: [0, 60, -80, 0] }}
+      transition={{ duration: 32, repeat: Infinity, ease: "easeInOut" }}
+      className="absolute -bottom-40 left-1/4 w-[50rem] h-[50rem] rounded-full"
+      style={{ background: "radial-gradient(circle, rgba(59,130,246,0.18), transparent 60%)", filter: "blur(40px)" }}
+    />
+  </div>
+);
+
+/* Cursor spotlight */
+const Spotlight = () => {
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  useEffect(() => {
+    const on = (e: MouseEvent) => { x.set(e.clientX); y.set(e.clientY); };
+    window.addEventListener("mousemove", on, { passive: true });
+    return () => window.removeEventListener("mousemove", on);
+  }, [x, y]);
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {particles.map((p) => (
-        <motion.div
-          key={p.id}
-          className="absolute rounded-full"
-          style={{
-            left: `${p.x}%`,
-            top: `${p.y}%`,
-            width: p.size,
-            height: p.size,
-            background: p.color,
-            boxShadow: `0 0 ${p.size * 4}px ${p.color}`,
-          }}
-          animate={{
-            y: [0, -40, 0],
-            x: [0, 15, -15, 0],
-            opacity: [p.opacity, p.opacity * 2, p.opacity],
-          }}
-          transition={{ duration: p.duration, repeat: Infinity, delay: p.delay, ease: "easeInOut" }}
-        />
-      ))}
-    </div>
+    <motion.div
+      className="pointer-events-none fixed top-0 left-0 z-[1] mix-blend-screen"
+      style={{
+        x, y,
+        translateX: "-50%", translateY: "-50%",
+        width: 480, height: 480,
+        background: "radial-gradient(circle, rgba(168,85,247,0.18), rgba(34,211,238,0.06) 40%, transparent 70%)",
+        filter: "blur(20px)",
+      }}
+    />
   );
 };
 
-// ─── Animated counter ───
+/* 3D-tilt holographic card */
+const TiltCard = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const rx = useMotionValue(0), ry = useMotionValue(0);
+  const mx = useMotionValue(50), my = useMotionValue(50);
+  const sx = useSpring(rx, { stiffness: 200, damping: 20 });
+  const sy = useSpring(ry, { stiffness: 200, damping: 20 });
+  const onMove = (e: React.MouseEvent) => {
+    const el = ref.current!;
+    const r = el.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width;
+    const py = (e.clientY - r.top) / r.height;
+    ry.set((px - 0.5) * 14);
+    rx.set(-(py - 0.5) * 14);
+    mx.set(px * 100); my.set(py * 100);
+  };
+  const onLeave = () => { rx.set(0); ry.set(0); };
+  return (
+    <motion.div
+      ref={ref}
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+      style={{ rotateX: sx, rotateY: sy, transformStyle: "preserve-3d", transformPerspective: 900 }}
+      className={`relative ${className}`}
+    >
+      {children}
+      <motion.div
+        className="absolute inset-0 rounded-2xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
+        style={{
+          background: "radial-gradient(400px circle at var(--mx) var(--my), rgba(255,255,255,0.12), transparent 50%)",
+          ["--mx" as any]: useTransform(mx, (v) => `${v}%`),
+          ["--my" as any]: useTransform(my, (v) => `${v}%`),
+        } as any}
+      />
+    </motion.div>
+  );
+};
+
+/* Magnetic button wrapper */
+const Magnetic = ({ children, strength = 0.25 }: { children: React.ReactNode; strength?: number }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const x = useSpring(0, { stiffness: 200, damping: 15 });
+  const y = useSpring(0, { stiffness: 200, damping: 15 });
+  const onMove = (e: React.MouseEvent) => {
+    const r = ref.current!.getBoundingClientRect();
+    x.set((e.clientX - (r.left + r.width / 2)) * strength);
+    y.set((e.clientY - (r.top + r.height / 2)) * strength);
+  };
+  const onLeave = () => { x.set(0); y.set(0); };
+  return (
+    <motion.div ref={ref} onMouseMove={onMove} onMouseLeave={onLeave} style={{ x, y }} className="inline-block">
+      {children}
+    </motion.div>
+  );
+};
+
+/* Animated counter */
 const Counter = ({ end, suffix = "", duration = 2 }: { end: number; suffix?: string; duration?: number }) => {
   const [val, setVal] = useState(0);
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, margin: "-50px" });
   useEffect(() => {
     if (!inView) return;
-    let start = 0;
-    const steps = 60;
-    const inc = end / steps;
+    let start = 0; const steps = 60; const inc = end / steps;
     const id = setInterval(() => {
       start += inc;
-      if (start >= end) {
-        setVal(end);
-        clearInterval(id);
-      } else setVal(Math.floor(start));
+      if (start >= end) { setVal(end); clearInterval(id); } else setVal(Math.floor(start));
     }, (duration * 1000) / steps);
     return () => clearInterval(id);
   }, [inView, end, duration]);
   return <span ref={ref}>{val.toLocaleString()}{suffix}</span>;
 };
 
-// ─── Section wrapper ───
-const Section = ({ children, className = "", id }: { children: React.ReactNode; className?: string; id?: string }) => (
-  <section id={id} className={`relative py-20 md:py-28 px-6 ${className}`}>
-    <div className="max-w-7xl mx-auto relative z-10">{children}</div>
-  </section>
-);
+/* AI typing terminal */
+const AITerminal = () => {
+  const lines = [
+    "> initializing acry.neural_network...",
+    "> connecting to campus_ambassador_grid",
+    "> 50,000+ students online · 120 cities",
+    "> mission: build india's ai generation ✓",
+    "> ambassador_slots: open ▒▒▒▒▒▒",
+  ];
+  const [shown, setShown] = useState<string[]>([]);
+  const [cursor, setCursor] = useState(0);
+  useEffect(() => {
+    if (cursor >= lines.length) return;
+    const t = setTimeout(() => {
+      setShown((s) => [...s, lines[cursor]]);
+      setCursor(cursor + 1);
+    }, 700);
+    return () => clearTimeout(t);
+  }, [cursor]);
+  return (
+    <div className="relative rounded-2xl border border-white/10 bg-black/60 backdrop-blur-xl overflow-hidden shadow-2xl shadow-purple-500/20">
+      <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-white/10 bg-white/[0.02]">
+        <div className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
+        <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
+        <div className="w-2.5 h-2.5 rounded-full bg-green-500/80" />
+        <div className="ml-3 flex items-center gap-1.5 text-[10px] text-white/40 font-mono">
+          <Terminal className="w-3 h-3" /> acry@ai · ~/ambassador
+        </div>
+      </div>
+      <div className="p-4 font-mono text-[11px] md:text-xs space-y-1 min-h-[140px]">
+        {shown.map((l, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            className={i === shown.length - 1 ? "text-cyan-300" : "text-white/60"}
+          >
+            {l}
+          </motion.div>
+        ))}
+        <motion.span
+          animate={{ opacity: [1, 0, 1] }}
+          transition={{ duration: 1, repeat: Infinity }}
+          className="inline-block w-1.5 h-3 bg-cyan-400 align-middle ml-0.5"
+        />
+      </div>
+    </div>
+  );
+};
 
-// ─── Glass card ───
+/* Glass + section heading helpers */
 const Glass = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
   <div
     className={`relative rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl ${className}`}
@@ -97,7 +282,12 @@ const Glass = ({ children, className = "" }: { children: React.ReactNode; classN
   </div>
 );
 
-// ─── Section heading ───
+const Section = ({ children, className = "", id }: { children: React.ReactNode; className?: string; id?: string }) => (
+  <section id={id} className={`relative py-20 md:py-28 px-6 ${className}`}>
+    <div className="max-w-7xl mx-auto relative z-10">{children}</div>
+  </section>
+);
+
 const SectionHead = ({ eyebrow, title, sub }: { eyebrow?: string; title: string; sub?: string }) => (
   <motion.div
     initial={{ opacity: 0, y: 30 }}
@@ -127,147 +317,301 @@ const SectionHead = ({ eyebrow, title, sub }: { eyebrow?: string; title: string;
   </motion.div>
 );
 
-// ─── HERO ───────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════
+   HERO — cinematic, AI-driven
+   ═══════════════════════════════════════════════════════════ */
 const Hero = ({ scrollToForm }: { scrollToForm: () => void }) => {
   const { scrollY } = useScroll();
-  const y1 = useTransform(scrollY, [0, 500], [0, -100]);
-  const y2 = useTransform(scrollY, [0, 500], [0, -50]);
+  const yBg = useTransform(scrollY, [0, 800], [0, -200]);
+  const yContent = useTransform(scrollY, [0, 800], [0, -60]);
+  const opacity = useTransform(scrollY, [0, 600], [1, 0.3]);
 
   const badges = [
     { icon: Brain, label: "AI Workshops" },
     { icon: Users, label: "Student Community" },
-    { icon: Crown, label: "Leadership Program" },
+    { icon: Crown, label: "Leadership" },
     { icon: Rocket, label: "Future Skills" },
   ];
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-28 pb-16 px-6">
-      {/* Animated background */}
-      <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(168,85,247,0.18),_transparent_60%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_rgba(34,211,238,0.12),_transparent_60%)]" />
-        <motion.div style={{ y: y1 }} className="absolute top-20 left-10 w-96 h-96 rounded-full bg-purple-600/20 blur-[120px]" />
-        <motion.div style={{ y: y2 }} className="absolute bottom-20 right-10 w-96 h-96 rounded-full bg-cyan-500/20 blur-[120px]" />
-      </div>
-      <AIParticles />
+    <section className="relative min-h-[100dvh] flex items-center overflow-hidden pt-28 pb-24 px-6">
+      {/* Layered backdrop */}
+      <motion.div style={{ y: yBg }} className="absolute inset-0">
+        <AuroraMesh />
+        <NeuralNetCanvas />
+      </motion.div>
 
-      {/* Grid overlay */}
+      {/* Grid */}
       <div
-        className="absolute inset-0 opacity-[0.04]"
+        className="absolute inset-0 opacity-[0.05] pointer-events-none"
         style={{
           backgroundImage:
             "linear-gradient(rgba(34,211,238,1) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,1) 1px, transparent 1px)",
-          backgroundSize: "80px 80px",
+          backgroundSize: "60px 60px",
+          maskImage: "radial-gradient(ellipse at center, black 30%, transparent 80%)",
         }}
       />
 
-      <div className="relative z-10 max-w-6xl mx-auto text-center">
-        {/* Live badge */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-purple-500/30 bg-purple-500/5 backdrop-blur-sm mb-8"
-        >
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 animate-ping" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-green-400" />
-          </span>
-          <span className="text-xs font-semibold tracking-wider uppercase text-purple-200">
-            Applications Open · Batch 2026
-          </span>
-        </motion.div>
-
-        {/* Headline */}
-        <motion.h1
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9, delay: 0.1 }}
-          className="text-[2.5rem] sm:text-5xl md:text-7xl lg:text-[5.5rem] font-bold tracking-tight leading-[1.05] mb-6"
-        >
-          <span className="text-white">Become an</span>
-          <br />
-          <span className="bg-gradient-to-r from-cyan-300 via-purple-400 to-blue-500 bg-clip-text text-transparent">
-            ACRY AI Campus
-          </span>
-          <br />
-          <span className="text-white">Ambassador.</span>
-        </motion.h1>
-
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.3 }}
-          className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto mb-10 leading-relaxed"
-        >
-          Lead the AI revolution in your campus and become part of India's
-          <span className="text-white font-semibold"> fastest-growing AI student network.</span>
-        </motion.p>
-
-        {/* CTAs */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.5 }}
-          className="flex flex-col sm:flex-row gap-4 justify-center mb-14"
-        >
-          <button
-            onClick={scrollToForm}
-            className="group relative inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-bold text-base text-white overflow-hidden transition-transform hover:scale-[1.03]"
-            style={{
-              background: "linear-gradient(135deg, #a855f7 0%, #3b82f6 50%, #22d3ee 100%)",
-              boxShadow: "0 10px 40px rgba(168, 85, 247, 0.4)",
-            }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-            <Rocket className="w-5 h-5 relative z-10" />
-            <span className="relative z-10">Apply Now</span>
-            <ArrowRight className="w-4 h-4 relative z-10 group-hover:translate-x-1 transition-transform" />
-          </button>
-          <a
-            href="#intro-video"
-            className="group inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-semibold text-white/90 border border-white/15 bg-white/[0.03] backdrop-blur-md hover:bg-white/[0.07] transition-all"
-          >
-            <Play className="w-4 h-4 fill-current" />
-            Watch Intro
-          </a>
-        </motion.div>
-
-        {/* Trust badges */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.8 }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-3xl mx-auto"
-        >
-          {badges.map((b, i) => (
+      {/* Orbiting AI rings */}
+      <div className="absolute right-[-200px] top-1/2 -translate-y-1/2 hidden lg:block">
+        <div className="relative w-[700px] h-[700px]">
+          {[0, 1, 2].map((i) => (
             <motion.div
-              key={b.label}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.9 + i * 0.1 }}
-              className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-md"
+              key={i}
+              animate={{ rotate: 360 }}
+              transition={{ duration: 40 + i * 15, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-0 rounded-full border border-white/[0.06]"
+              style={{ inset: i * 80 }}
             >
-              <b.icon className="w-4 h-4 text-cyan-300 flex-shrink-0" />
-              <span className="text-xs sm:text-sm font-medium text-white/80">{b.label}</span>
+              <div
+                className="absolute w-3 h-3 rounded-full"
+                style={{
+                  top: "50%", left: 0, transform: "translate(-50%, -50%)",
+                  background: i === 0 ? "#22d3ee" : i === 1 ? "#a855f7" : "#3b82f6",
+                  boxShadow: `0 0 20px ${i === 0 ? "#22d3ee" : i === 1 ? "#a855f7" : "#3b82f6"}`,
+                }}
+              />
             </motion.div>
           ))}
-        </motion.div>
+          {/* Core orb */}
+          <motion.div
+            animate={{ scale: [1, 1.1, 1] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full"
+            style={{
+              background: "radial-gradient(circle, #a855f7, #3b82f6 50%, transparent 80%)",
+              filter: "blur(2px)",
+            }}
+          />
+        </div>
       </div>
+
+      <motion.div style={{ y: yContent, opacity }} className="relative z-10 max-w-7xl mx-auto w-full grid lg:grid-cols-[1.3fr_1fr] gap-12 items-center">
+        <div className="text-center lg:text-left">
+          {/* Live badge */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-purple-500/30 bg-purple-500/5 backdrop-blur-sm mb-7"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 animate-ping" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-green-400" />
+            </span>
+            <span className="text-xs font-semibold tracking-wider uppercase text-purple-200">
+              Applications Open · Batch 2026
+            </span>
+            <span className="px-1.5 py-0.5 rounded-md bg-gradient-to-r from-purple-500 to-cyan-400 text-[9px] font-black text-black uppercase">
+              Limited
+            </span>
+          </motion.div>
+
+          {/* Headline */}
+          <motion.h1
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.9, delay: 0.1 }}
+            className="text-[2.6rem] sm:text-5xl md:text-7xl lg:text-[5.2rem] font-bold tracking-tight leading-[1.02] mb-6"
+          >
+            <span className="text-white">Become an </span>
+            <span className="relative inline-block">
+              <span className="relative z-10 bg-gradient-to-r from-cyan-300 via-purple-400 to-blue-500 bg-clip-text text-transparent">
+                ACRY AI
+              </span>
+              <motion.span
+                aria-hidden
+                animate={{ x: ["-100%", "100%"] }}
+                transition={{ duration: 3, repeat: Infinity, repeatDelay: 2, ease: "easeInOut" }}
+                className="absolute inset-0 z-0 bg-gradient-to-r from-transparent via-white/40 to-transparent"
+                style={{ mixBlendMode: "overlay" }}
+              />
+            </span>
+            <br />
+            <span className="text-white">Campus </span>
+            <span className="bg-gradient-to-r from-purple-400 to-cyan-300 bg-clip-text text-transparent">Ambassador.</span>
+          </motion.h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+            className="text-base md:text-xl text-white/70 max-w-xl lg:max-w-none mb-9 leading-relaxed mx-auto lg:mx-0"
+          >
+            Lead the AI revolution in your campus and become part of India's
+            <span className="text-white font-semibold"> fastest-growing AI student network.</span>
+          </motion.p>
+
+          {/* CTAs */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.5 }}
+            className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-12"
+          >
+            <Magnetic>
+              <button
+                onClick={scrollToForm}
+                className="group relative inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl font-bold text-base text-white overflow-hidden"
+                style={{
+                  background: "linear-gradient(135deg, #a855f7, #3b82f6 50%, #22d3ee)",
+                  boxShadow: "0 0 40px rgba(168,85,247,0.5), 0 10px 40px rgba(34,211,238,0.25)",
+                }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                <span
+                  className="absolute -inset-1 rounded-2xl opacity-50 blur-xl"
+                  style={{ background: "linear-gradient(135deg, #a855f7, #22d3ee)" }}
+                />
+                <Rocket className="w-5 h-5 relative z-10" />
+                <span className="relative z-10">Apply Now — It's Free</span>
+                <ArrowRight className="w-4 h-4 relative z-10 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </Magnetic>
+            <Magnetic strength={0.15}>
+              <a
+                href="#intro-video"
+                className="group inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl font-semibold text-white/90 border border-white/15 bg-white/[0.03] backdrop-blur-md hover:bg-white/[0.08] hover:border-cyan-400/40 transition-all"
+              >
+                <span className="relative w-7 h-7 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-cyan-400/20 transition-colors">
+                  <Play className="w-3 h-3 fill-current text-cyan-300" />
+                </span>
+                Watch Intro
+              </a>
+            </Magnetic>
+          </motion.div>
+
+          {/* Trust badges */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.8 }}
+            className="grid grid-cols-2 md:grid-cols-4 gap-2.5 max-w-2xl mx-auto lg:mx-0"
+          >
+            {badges.map((b, i) => (
+              <motion.div
+                key={b.label}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.9 + i * 0.1 }}
+                whileHover={{ y: -3, scale: 1.03 }}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-md hover:border-cyan-400/30 transition-colors"
+              >
+                <b.icon className="w-4 h-4 text-cyan-300 flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-white/80 truncate">{b.label}</span>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+
+        {/* Right column: holographic stack */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9, y: 40 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.4 }}
+          className="relative hidden lg:block"
+        >
+          <div className="relative space-y-4">
+            <TiltCard className="group">
+              <AITerminal />
+            </TiltCard>
+
+            {/* Floating stat card */}
+            <motion.div
+              animate={{ y: [0, -8, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute -left-12 -bottom-10 w-56"
+            >
+              <TiltCard className="group">
+                <Glass className="p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-cyan-400 flex items-center justify-center">
+                      <Atom className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-widest text-cyan-300 font-bold">Live</div>
+                      <div className="text-white text-sm font-bold">Network Pulse</div>
+                    </div>
+                  </div>
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <div className="text-2xl font-black text-white">
+                        <Counter end={847} />
+                      </div>
+                      <div className="text-[10px] text-white/40 uppercase">apps / hour</div>
+                    </div>
+                    <div className="flex gap-0.5 items-end h-8">
+                      {[6, 10, 4, 14, 8, 18, 12, 22, 16, 26].map((h, i) => (
+                        <motion.div
+                          key={i}
+                          animate={{ height: [h, h * 1.4, h] }}
+                          transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.1 }}
+                          className="w-1 rounded-full bg-gradient-to-t from-purple-500 to-cyan-400"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </Glass>
+              </TiltCard>
+            </motion.div>
+
+            {/* Floating badge */}
+            <motion.div
+              animate={{ y: [0, 8, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+              className="absolute -right-8 -top-6"
+            >
+              <Glass className="px-3 py-2 flex items-center gap-2">
+                <Wand2 className="w-3.5 h-3.5 text-purple-300" />
+                <span className="text-xs font-bold text-white">AI-Powered</span>
+              </Glass>
+            </motion.div>
+          </div>
+        </motion.div>
+      </motion.div>
 
       {/* Scroll cue */}
       <motion.div
         animate={{ y: [0, 8, 0] }}
         transition={{ duration: 2, repeat: Infinity }}
-        className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/40"
+        className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/40 flex flex-col items-center gap-1"
       >
-        <ChevronDown className="w-5 h-5" />
+        <span className="text-[9px] uppercase tracking-widest">Scroll</span>
+        <ChevronDown className="w-4 h-4" />
       </motion.div>
     </section>
   );
 };
 
-// ─── FOUNDER MESSAGE ───
+/* Marquee — "trusted by" campus row */
+const CampusMarquee = () => {
+  const campuses = ["IIT Delhi", "BITS Pilani", "NIT Trichy", "VIT Vellore", "IIM Bangalore", "DTU", "SRM", "Manipal", "Christ University", "Amity"];
+  return (
+    <div className="relative py-10 overflow-hidden border-y border-white/5 bg-white/[0.01]">
+      <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-[#05070d] to-transparent z-10" />
+      <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-[#05070d] to-transparent z-10" />
+      <div className="text-center mb-5 text-[10px] uppercase tracking-[0.3em] text-white/40 font-bold">
+        Ambassadors from across India
+      </div>
+      <div className="flex overflow-hidden">
+        <motion.div
+          animate={{ x: ["0%", "-50%"] }}
+          transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+          className="flex gap-12 whitespace-nowrap pr-12"
+        >
+          {[...campuses, ...campuses, ...campuses].map((c, i) => (
+            <div key={i} className="flex items-center gap-2 text-white/40 hover:text-white transition-colors">
+              <GraduationCap className="w-4 h-4 text-cyan-400/60" />
+              <span className="text-sm font-semibold tracking-wide">{c}</span>
+            </div>
+          ))}
+        </motion.div>
+      </div>
+    </div>
+  );
+};
+
+/* Founder message */
 const FounderMessage = () => (
   <Section id="founder">
     <div className="grid md:grid-cols-2 gap-12 items-center">
@@ -276,30 +620,49 @@ const FounderMessage = () => (
         whileInView={{ opacity: 1, x: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.8 }}
-        className="relative"
       >
         <div className="relative aspect-square max-w-md mx-auto">
+          {/* Pulsing rings */}
+          {[0, 1, 2].map((i) => (
+            <motion.div
+              key={i}
+              animate={{ scale: [1, 1.3, 1], opacity: [0.4, 0, 0.4] }}
+              transition={{ duration: 3, repeat: Infinity, delay: i * 1, ease: "easeOut" }}
+              className="absolute inset-0 rounded-full border border-purple-400/30"
+            />
+          ))}
           <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-purple-500/40 via-blue-500/30 to-cyan-400/40 blur-2xl" />
-          <Glass className="relative aspect-square overflow-hidden flex items-center justify-center">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,_rgba(168,85,247,0.3),_transparent_50%)]" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_70%,_rgba(34,211,238,0.3),_transparent_50%)]" />
-            <div className="relative z-10 flex flex-col items-center text-center p-8">
-              <div className="w-32 h-32 rounded-full bg-gradient-to-br from-purple-500 to-cyan-400 flex items-center justify-center text-5xl font-black text-white mb-4 shadow-2xl">
-                A
+          <TiltCard className="relative aspect-square">
+            <Glass className="relative aspect-square overflow-hidden flex items-center justify-center">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,_rgba(168,85,247,0.3),_transparent_50%)]" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_70%,_rgba(34,211,238,0.3),_transparent_50%)]" />
+              <div className="relative z-10 flex flex-col items-center text-center p-8">
+                <motion.div
+                  animate={{ rotate: [0, 360] }}
+                  transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-8 rounded-full border border-cyan-400/20"
+                />
+                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-purple-500 to-cyan-400 flex items-center justify-center text-5xl font-black text-white mb-4 shadow-2xl shadow-purple-500/40 relative">
+                  A
+                  <motion.div
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="absolute inset-0 rounded-full border-2 border-cyan-300/40"
+                  />
+                </div>
+                <div className="text-white font-bold text-lg">Founder, ACRY AI</div>
+                <div className="text-cyan-300 text-sm mt-1">Building India's AI generation</div>
+                <motion.div
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                  className="absolute top-6 right-6 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center gap-1.5"
+                >
+                  <Flame className="w-3 h-3 text-orange-400" />
+                  <span className="text-[10px] font-bold text-white">LIVE MISSION</span>
+                </motion.div>
               </div>
-              <div className="text-white font-bold text-lg">Founder, ACRY AI</div>
-              <div className="text-cyan-300 text-sm mt-1">Building India's AI generation</div>
-              {/* Floating badge */}
-              <motion.div
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 3, repeat: Infinity }}
-                className="absolute top-6 right-6 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center gap-1.5"
-              >
-                <Flame className="w-3 h-3 text-orange-400" />
-                <span className="text-[10px] font-bold text-white">LIVE MISSION</span>
-              </motion.div>
-            </div>
-          </Glass>
+            </Glass>
+          </TiltCard>
         </div>
       </motion.div>
 
@@ -314,7 +677,7 @@ const FounderMessage = () => (
           <span className="text-[10px] font-bold tracking-widest uppercase text-purple-200">A Message From The Founder</span>
         </div>
         <h3 className="text-3xl md:text-5xl font-bold text-white mb-6 leading-tight">
-          We are building India's
+          We're building India's
           <span className="block bg-gradient-to-r from-cyan-300 to-purple-400 bg-clip-text text-transparent">
             AI-ready student generation.
           </span>
@@ -337,7 +700,7 @@ const FounderMessage = () => (
   </Section>
 );
 
-// ─── WHY JOIN ───
+/* WHY JOIN — holographic grid */
 const WhyJoin = () => {
   const benefits = [
     { icon: Brain, title: "AI Training", desc: "Hands-on training in modern AI tools, prompt engineering, and applied ML." },
@@ -365,18 +728,24 @@ const WhyJoin = () => {
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-50px" }}
-            transition={{ duration: 0.5, delay: (i % 5) * 0.08 }}
-            whileHover={{ y: -6 }}
+            transition={{ duration: 0.5, delay: (i % 5) * 0.06 }}
             className="group relative"
           >
-            <div className="absolute -inset-px rounded-2xl bg-gradient-to-br from-purple-500/0 via-cyan-400/0 to-blue-500/0 group-hover:from-purple-500/30 group-hover:via-cyan-400/20 group-hover:to-blue-500/30 transition-all duration-500 blur-sm" />
-            <Glass className="relative p-5 h-full">
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500/20 to-cyan-400/20 border border-white/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <b.icon className="w-5 h-5 text-cyan-300" />
-              </div>
-              <h4 className="font-bold text-white mb-1.5">{b.title}</h4>
-              <p className="text-xs text-white/60 leading-relaxed">{b.desc}</p>
-            </Glass>
+            <TiltCard>
+              <div className="absolute -inset-px rounded-2xl bg-gradient-to-br from-purple-500/0 via-cyan-400/0 to-blue-500/0 group-hover:from-purple-500/40 group-hover:via-cyan-400/30 group-hover:to-blue-500/40 transition-all duration-500 blur-md" />
+              <Glass className="relative p-5 h-full">
+                <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500/20 to-cyan-400/20 border border-white/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <b.icon className="w-5 h-5 text-cyan-300" />
+                  <motion.div
+                    className="absolute inset-0 rounded-xl border border-cyan-400/0 group-hover:border-cyan-400/50"
+                    animate={{ scale: [1, 1.15, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  />
+                </div>
+                <h4 className="font-bold text-white mb-1.5">{b.title}</h4>
+                <p className="text-xs text-white/60 leading-relaxed">{b.desc}</p>
+              </Glass>
+            </TiltCard>
           </motion.div>
         ))}
       </div>
@@ -384,7 +753,7 @@ const WhyJoin = () => {
   );
 };
 
-// ─── WHAT WILL YOU DO ───
+/* WHAT YOU DO */
 const WhatYouDo = () => {
   const items = [
     { icon: Mic, title: "Organize AI Workshops", desc: "Run flagship AI workshops on your campus — fully supported by ACRY." },
@@ -398,8 +767,7 @@ const WhatYouDo = () => {
     <Section id="responsibilities">
       <SectionHead eyebrow="The Role" title="What you'll |actually do|." sub="A clear, exciting playbook — not vague tasks." />
       <div className="relative">
-        {/* Vertical line for desktop */}
-        <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-purple-500/30 to-transparent -translate-x-1/2" />
+        <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-purple-500/40 to-transparent -translate-x-1/2" />
         <div className="space-y-6 md:space-y-12">
           {items.map((it, i) => {
             const left = i % 2 === 0;
@@ -410,30 +778,42 @@ const WhatYouDo = () => {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6 }}
-                className={`md:grid md:grid-cols-2 md:gap-12 items-center`}
+                className="md:grid md:grid-cols-2 md:gap-12 items-center"
               >
                 <div className={`${left ? "md:order-1" : "md:order-2"}`}>
-                  <Glass className="p-6 group hover:border-cyan-400/30 transition-colors">
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/30 to-cyan-400/30 border border-white/10 flex items-center justify-center flex-shrink-0">
-                        <it.icon className="w-6 h-6 text-cyan-300" />
-                      </div>
-                      <div>
-                        <div className="text-[10px] font-bold tracking-widest uppercase text-purple-300 mb-1">
-                          Step {String(i + 1).padStart(2, "0")}
+                  <TiltCard>
+                    <Glass className="p-6 group hover:border-cyan-400/30 transition-colors">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/30 to-cyan-400/30 border border-white/10 flex items-center justify-center flex-shrink-0">
+                          <it.icon className="w-6 h-6 text-cyan-300" />
                         </div>
-                        <h4 className="text-xl font-bold text-white mb-2">{it.title}</h4>
-                        <p className="text-sm text-white/60 leading-relaxed">{it.desc}</p>
+                        <div>
+                          <div className="text-[10px] font-bold tracking-widest uppercase text-purple-300 mb-1">
+                            Step {String(i + 1).padStart(2, "0")}
+                          </div>
+                          <h4 className="text-xl font-bold text-white mb-2">{it.title}</h4>
+                          <p className="text-sm text-white/60 leading-relaxed">{it.desc}</p>
+                        </div>
                       </div>
-                    </div>
-                  </Glass>
+                    </Glass>
+                  </TiltCard>
                 </div>
                 <div className={`hidden md:flex items-center justify-center ${left ? "md:order-2" : "md:order-1"}`}>
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500/20 to-cyan-400/20 border border-white/10 flex items-center justify-center backdrop-blur-md">
+                  <motion.div
+                    whileInView={{ scale: [0, 1.2, 1] }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6, type: "spring" }}
+                    className="relative w-20 h-20 rounded-full bg-gradient-to-br from-purple-500/20 to-cyan-400/20 border border-white/10 flex items-center justify-center backdrop-blur-md"
+                  >
+                    <motion.div
+                      animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0, 0.5] }}
+                      transition={{ duration: 2.5, repeat: Infinity }}
+                      className="absolute inset-0 rounded-full border border-cyan-400/40"
+                    />
                     <div className="text-2xl font-black bg-gradient-to-br from-cyan-300 to-purple-400 bg-clip-text text-transparent">
                       {String(i + 1).padStart(2, "0")}
                     </div>
-                  </div>
+                  </motion.div>
                 </div>
               </motion.div>
             );
@@ -444,7 +824,7 @@ const WhatYouDo = () => {
   );
 };
 
-// ─── EVENT SHOWCASE + METRICS ───
+/* SHOWCASE */
 const Showcase = () => {
   const metrics = [
     { label: "Students Joined", value: 50000, suffix: "+" },
@@ -464,7 +844,6 @@ const Showcase = () => {
     <Section id="showcase" className="bg-gradient-to-b from-transparent via-blue-950/20 to-transparent">
       <SectionHead eyebrow="The Movement" title="From classrooms to |cities|." sub="Real events. Real impact. Real momentum." />
 
-      {/* Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16">
         {metrics.map((m, i) => (
           <motion.div
@@ -472,19 +851,20 @@ const Showcase = () => {
             initial={{ opacity: 0, scale: 0.9 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: i * 0.1 }}
+            transition={{ duration: 0.5, delay: i * 0.08 }}
           >
-            <Glass className="p-6 text-center">
-              <div className="text-3xl md:text-5xl font-black bg-gradient-to-br from-cyan-300 to-purple-400 bg-clip-text text-transparent mb-1">
-                <Counter end={m.value} suffix={m.suffix} />
-              </div>
-              <div className="text-xs uppercase tracking-widest text-white/50 font-semibold">{m.label}</div>
-            </Glass>
+            <TiltCard>
+              <Glass className="p-6 text-center group hover:border-cyan-400/30 transition-colors">
+                <div className="text-3xl md:text-5xl font-black bg-gradient-to-br from-cyan-300 to-purple-400 bg-clip-text text-transparent mb-1">
+                  <Counter end={m.value} suffix={m.suffix} />
+                </div>
+                <div className="text-xs uppercase tracking-widest text-white/50 font-semibold">{m.label}</div>
+              </Glass>
+            </TiltCard>
           </motion.div>
         ))}
       </div>
 
-      {/* Event grid */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {events.map((e, i) => (
           <motion.div
@@ -499,6 +879,12 @@ const Showcase = () => {
             <div className={`absolute inset-0 bg-gradient-to-br ${e.color} opacity-30 group-hover:opacity-50 transition-opacity`} />
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_30%,_rgba(0,0,0,0.6)_100%)]" />
+            {/* Scan line */}
+            <motion.div
+              animate={{ y: ["-100%", "200%"] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "linear", delay: i * 0.5 }}
+              className="absolute inset-x-0 h-1 bg-gradient-to-b from-transparent via-cyan-400/60 to-transparent opacity-50"
+            />
             <div className="relative h-full flex flex-col justify-end p-6">
               <e.icon className="w-10 h-10 text-white/90 mb-3" />
               <h4 className="text-xl font-bold text-white">{e.title}</h4>
@@ -514,53 +900,19 @@ const Showcase = () => {
   );
 };
 
-// ─── TESTIMONIALS / SOCIAL PROOF ───
+/* SOCIAL PROOF */
 const SocialProof = () => {
   const testimonials = [
-    {
-      name: "Aarav Sharma",
-      role: "Ambassador · IIT Delhi",
-      text: "Going from a curious student to leading 8 AI workshops in 4 months — ACRY made me the person I always wanted to be.",
-      color: "from-purple-500 to-pink-500",
-    },
-    {
-      name: "Ishita Verma",
-      role: "Ambassador · BITS Pilani",
-      text: "I built a 600-member AI community on my campus. The mentorship + the brand backing is unreal.",
-      color: "from-cyan-400 to-blue-500",
-    },
-    {
-      name: "Rohan Mehta",
-      role: "Ambassador · NIT Trichy",
-      text: "This isn't just an ambassador program — it's a launchpad. I got my AI internship through this network.",
-      color: "from-amber-400 to-orange-500",
-    },
-    {
-      name: "Priya Iyer",
-      role: "Ambassador · VIT Vellore",
-      text: "The founder mentorship sessions changed how I think about AI, leadership, and my career.",
-      color: "from-emerald-400 to-cyan-400",
-    },
-    {
-      name: "Karan Singh",
-      role: "Ambassador · DTU",
-      text: "Best decision of my college life. Period.",
-      color: "from-fuchsia-500 to-purple-500",
-    },
-    {
-      name: "Ananya Kapoor",
-      role: "Ambassador · SRM",
-      text: "I had 0 leadership experience. Now I run my own AI club & speak at events.",
-      color: "from-blue-500 to-indigo-500",
-    },
+    { name: "Aarav Sharma", role: "Ambassador · IIT Delhi", text: "Going from a curious student to leading 8 AI workshops in 4 months — ACRY made me the person I always wanted to be.", color: "from-purple-500 to-pink-500" },
+    { name: "Ishita Verma", role: "Ambassador · BITS Pilani", text: "I built a 600-member AI community on my campus. The mentorship + brand backing is unreal.", color: "from-cyan-400 to-blue-500" },
+    { name: "Rohan Mehta", role: "Ambassador · NIT Trichy", text: "This isn't just an ambassador program — it's a launchpad. I got my AI internship through this network.", color: "from-amber-400 to-orange-500" },
+    { name: "Priya Iyer", role: "Ambassador · VIT Vellore", text: "The founder mentorship sessions changed how I think about AI, leadership, and my career.", color: "from-emerald-400 to-cyan-400" },
+    { name: "Karan Singh", role: "Ambassador · DTU", text: "Best decision of my college life. Period.", color: "from-fuchsia-500 to-purple-500" },
+    { name: "Ananya Kapoor", role: "Ambassador · SRM", text: "I had 0 leadership experience. Now I run my own AI club & speak at events.", color: "from-blue-500 to-indigo-500" },
   ];
   return (
     <Section id="community">
-      <SectionHead
-        eyebrow="The Community"
-        title="Join India's |next-generation| AI student movement."
-        sub="Real voices from real campuses."
-      />
+      <SectionHead eyebrow="The Community" title="Join India's |next-generation| AI student movement." sub="Real voices from real campuses." />
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {testimonials.map((t, i) => (
           <motion.div
@@ -570,23 +922,25 @@ const SocialProof = () => {
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: (i % 3) * 0.1 }}
           >
-            <Glass className="p-6 h-full">
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${t.color} flex items-center justify-center text-white font-bold`}>
-                  {t.name[0]}
+            <TiltCard>
+              <Glass className="p-6 h-full">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${t.color} flex items-center justify-center text-white font-bold shadow-lg`}>
+                    {t.name[0]}
+                  </div>
+                  <div>
+                    <div className="font-bold text-white text-sm">{t.name}</div>
+                    <div className="text-xs text-white/50">{t.role}</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="font-bold text-white text-sm">{t.name}</div>
-                  <div className="text-xs text-white/50">{t.role}</div>
+                <div className="flex gap-0.5 mb-3">
+                  {[...Array(5)].map((_, k) => (
+                    <Star key={k} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                  ))}
                 </div>
-              </div>
-              <div className="flex gap-0.5 mb-3">
-                {[...Array(5)].map((_, k) => (
-                  <Star key={k} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                ))}
-              </div>
-              <p className="text-sm text-white/75 leading-relaxed">"{t.text}"</p>
-            </Glass>
+                <p className="text-sm text-white/75 leading-relaxed">"{t.text}"</p>
+              </Glass>
+            </TiltCard>
           </motion.div>
         ))}
       </div>
@@ -594,7 +948,7 @@ const SocialProof = () => {
   );
 };
 
-// ─── HOW IT WORKS ───
+/* HOW IT WORKS */
 const HowItWorks = () => {
   const steps = [
     { icon: Send, title: "Apply Online", desc: "Fill the application below." },
@@ -615,18 +969,24 @@ const HowItWorks = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: i * 0.08 }}
-            className="relative"
           >
-            <Glass className="p-6 h-full group hover:border-purple-400/30 transition-colors">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/30 to-cyan-400/30 border border-white/10 flex items-center justify-center">
-                  <s.icon className="w-5 h-5 text-cyan-300" />
+            <TiltCard>
+              <Glass className="p-6 h-full group hover:border-purple-400/30 transition-colors">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/30 to-cyan-400/30 border border-white/10 flex items-center justify-center">
+                    <s.icon className="w-5 h-5 text-cyan-300" />
+                    <motion.div
+                      animate={{ scale: [1, 1.3, 1], opacity: [0.4, 0, 0.4] }}
+                      transition={{ duration: 2, repeat: Infinity, delay: i * 0.2 }}
+                      className="absolute inset-0 rounded-xl border border-cyan-400/40"
+                    />
+                  </div>
+                  <div className="text-4xl font-black text-white/5">{String(i + 1).padStart(2, "0")}</div>
                 </div>
-                <div className="text-4xl font-black text-white/5">{String(i + 1).padStart(2, "0")}</div>
-              </div>
-              <h4 className="text-lg font-bold text-white mb-1">{s.title}</h4>
-              <p className="text-sm text-white/60">{s.desc}</p>
-            </Glass>
+                <h4 className="text-lg font-bold text-white mb-1">{s.title}</h4>
+                <p className="text-sm text-white/60">{s.desc}</p>
+              </Glass>
+            </TiltCard>
           </motion.div>
         ))}
       </div>
@@ -634,7 +994,7 @@ const HowItWorks = () => {
   );
 };
 
-// ─── LEADERBOARD ───
+/* LEADERBOARD */
 const Leaderboard = () => {
   const top = [
     { rank: 1, name: "Aarav S.", city: "Delhi", points: 9840, badge: "👑" },
@@ -651,93 +1011,100 @@ const Leaderboard = () => {
   ];
   return (
     <Section id="leaderboard">
-      <SectionHead
-        eyebrow="The Game"
-        title="Climb the |leaderboard|. Get recognised."
-        sub="Top ambassadors get rewards, opportunities, and the spotlight."
-      />
+      <SectionHead eyebrow="The Game" title="Climb the |leaderboard|. Get recognised." sub="Top ambassadors get rewards, opportunities, and the spotlight." />
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Top ambassadors */}
-        <Glass className="p-6">
-          <div className="flex items-center justify-between mb-5">
-            <h4 className="font-bold text-white flex items-center gap-2">
-              <Trophy className="w-4 h-4 text-amber-400" /> Top Ambassadors
-            </h4>
-            <div className="text-xs text-white/50">This month</div>
-          </div>
-          <div className="space-y-2">
-            {top.map((u) => (
-              <motion.div
-                key={u.rank}
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: u.rank * 0.05 }}
-                className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:border-purple-400/30 transition-colors"
-              >
-                <div className="text-xl w-8 text-center">{u.badge}</div>
-                <div className="flex-1">
-                  <div className="font-semibold text-white text-sm">{u.name}</div>
-                  <div className="text-xs text-white/40">{u.city}</div>
-                </div>
-                <div className="text-cyan-300 font-bold tabular-nums">{u.points.toLocaleString()}</div>
-                <div className="text-[10px] uppercase text-white/40">pts</div>
-              </motion.div>
-            ))}
-          </div>
-        </Glass>
-
-        {/* Top cities */}
-        <Glass className="p-6">
-          <div className="flex items-center justify-between mb-5">
-            <h4 className="font-bold text-white flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-cyan-400" /> Top Cities
-            </h4>
-            <div className="text-xs text-white/50">Live ranks</div>
-          </div>
-          <div className="space-y-4">
-            {cities.map((c, i) => {
-              const pct = (c.ambassadors / 420) * 100;
-              return (
-                <div key={c.city}>
-                  <div className="flex items-center justify-between mb-1.5 text-sm">
-                    <span className="text-white font-medium">{c.city}</span>
-                    <span className="text-white/60 tabular-nums">{c.ambassadors} ambassadors</span>
+        <TiltCard>
+          <Glass className="p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h4 className="font-bold text-white flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-amber-400" /> Top Ambassadors
+              </h4>
+              <div className="text-xs text-white/50 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" /> Live
+              </div>
+            </div>
+            <div className="space-y-2">
+              {top.map((u) => (
+                <motion.div
+                  key={u.rank}
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: u.rank * 0.05 }}
+                  whileHover={{ x: 4 }}
+                  className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:border-purple-400/30 transition-colors"
+                >
+                  <div className="text-xl w-8 text-center">{u.badge}</div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-white text-sm">{u.name}</div>
+                    <div className="text-xs text-white/40">{u.city}</div>
                   </div>
-                  <div className="h-2 rounded-full bg-white/5 overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      whileInView={{ width: `${pct}%` }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 1, delay: i * 0.15, ease: "easeOut" }}
-                      className="h-full rounded-full bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-400"
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="mt-6 pt-5 border-t border-white/5">
-            <div className="grid grid-cols-3 gap-2 text-center">
-              {[
-                { icon: Crown, label: "Founder", c: "text-amber-300" },
-                { icon: Shield, label: "Pioneer", c: "text-purple-300" },
-                { icon: Flame, label: "Igniter", c: "text-orange-300" },
-              ].map((b) => (
-                <div key={b.label} className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                  <b.icon className={`w-5 h-5 mx-auto mb-1 ${b.c}`} />
-                  <div className="text-[10px] uppercase tracking-wider text-white/60 font-semibold">{b.label}</div>
-                </div>
+                  <div className="text-cyan-300 font-bold tabular-nums">{u.points.toLocaleString()}</div>
+                  <div className="text-[10px] uppercase text-white/40">pts</div>
+                </motion.div>
               ))}
             </div>
-          </div>
-        </Glass>
+          </Glass>
+        </TiltCard>
+
+        <TiltCard>
+          <Glass className="p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h4 className="font-bold text-white flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-cyan-400" /> Top Cities
+              </h4>
+              <div className="text-xs text-white/50">Live ranks</div>
+            </div>
+            <div className="space-y-4">
+              {cities.map((c, i) => {
+                const pct = (c.ambassadors / 420) * 100;
+                return (
+                  <div key={c.city}>
+                    <div className="flex items-center justify-between mb-1.5 text-sm">
+                      <span className="text-white font-medium">{c.city}</span>
+                      <span className="text-white/60 tabular-nums">{c.ambassadors} ambassadors</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        whileInView={{ width: `${pct}%` }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 1.2, delay: i * 0.15, ease: "easeOut" }}
+                        className="h-full rounded-full bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-400 relative overflow-hidden"
+                      >
+                        <motion.div
+                          animate={{ x: ["-100%", "200%"] }}
+                          transition={{ duration: 2, repeat: Infinity, delay: i * 0.3 }}
+                          className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/50 to-transparent"
+                        />
+                      </motion.div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-6 pt-5 border-t border-white/5">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                {[
+                  { icon: Crown, label: "Founder", c: "text-amber-300" },
+                  { icon: Shield, label: "Pioneer", c: "text-purple-300" },
+                  { icon: Flame, label: "Igniter", c: "text-orange-300" },
+                ].map((b) => (
+                  <div key={b.label} className="p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:border-cyan-400/30 transition-colors">
+                    <b.icon className={`w-5 h-5 mx-auto mb-1 ${b.c}`} />
+                    <div className="text-[10px] uppercase tracking-wider text-white/60 font-semibold">{b.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Glass>
+        </TiltCard>
       </div>
     </Section>
   );
 };
 
-// ─── APPLICATION FORM ──────────────────────────────────
+/* APPLICATION FORM */
 const schema = z.object({
   full_name: z.string().trim().min(2, "Name too short").max(100),
   phone: z.string().trim().regex(/^[+]?[\d\s-]{10,15}$/, "Invalid phone"),
@@ -761,210 +1128,186 @@ const ApplicationForm = ({ formRef }: { formRef: React.RefObject<HTMLDivElement>
   });
 
   const steps = [
-    {
-      title: "About You",
-      fields: [
-        { name: "full_name", label: "Full Name", icon: User, placeholder: "Your full name", required: true },
-        { name: "phone", label: "Phone Number", icon: Phone, placeholder: "+91 98765 43210", required: true },
-        { name: "email", label: "Email", icon: Mail, placeholder: "you@email.com", required: true, type: "email" },
-      ],
-    },
-    {
-      title: "Your Campus",
-      fields: [
-        { name: "college", label: "College / Coaching", icon: School, placeholder: "e.g. IIT Delhi", required: true },
-        { name: "city", label: "City", icon: MapPin, placeholder: "e.g. Bengaluru", required: true },
-        { name: "course", label: "Course / Year", icon: BookOpen, placeholder: "e.g. B.Tech CS · 2nd Year" },
-      ],
-    },
-    {
-      title: "Your Presence",
-      fields: [
-        { name: "instagram", label: "Instagram Profile", icon: Instagram, placeholder: "@yourhandle" },
-        { name: "linkedin", label: "LinkedIn Profile", icon: Linkedin, placeholder: "linkedin.com/in/you" },
-      ],
-    },
-    {
-      title: "Your Story",
-      fields: [
-        { name: "why_join", label: "Why do you want to join?", icon: Heart, placeholder: "Tell us your motivation...", multiline: true },
-        { name: "leadership_experience", label: "Leadership Experience", icon: Crown, placeholder: "Any past leadership roles (optional)...", multiline: true },
-      ],
-    },
+    { title: "About You", fields: [
+      { name: "full_name", label: "Full Name", icon: User, placeholder: "Your full name", required: true },
+      { name: "phone", label: "Phone Number", icon: Phone, placeholder: "+91 98765 43210", required: true },
+      { name: "email", label: "Email", icon: Mail, placeholder: "you@email.com", required: true, type: "email" },
+    ]},
+    { title: "Your Campus", fields: [
+      { name: "college", label: "College / Coaching", icon: School, placeholder: "e.g. IIT Delhi", required: true },
+      { name: "city", label: "City", icon: MapPin, placeholder: "e.g. Bengaluru", required: true },
+      { name: "course", label: "Course / Year", icon: BookOpen, placeholder: "e.g. B.Tech CS · 2nd Year" },
+    ]},
+    { title: "Your Presence", fields: [
+      { name: "instagram", label: "Instagram Profile", icon: Instagram, placeholder: "@yourhandle" },
+      { name: "linkedin", label: "LinkedIn Profile", icon: Linkedin, placeholder: "linkedin.com/in/you" },
+    ]},
+    { title: "Your Story", fields: [
+      { name: "why_join", label: "Why do you want to join?", icon: Heart, placeholder: "Tell us your motivation...", multiline: true },
+      { name: "leadership_experience", label: "Leadership Experience", icon: Crown, placeholder: "Any past leadership roles (optional)...", multiline: true },
+    ]},
   ];
-
   const progress = ((step + 1) / steps.length) * 100;
 
   const validateStep = () => {
     const fields = steps[step].fields as any[];
     for (const f of fields) {
       const v = (data as any)[f.name];
-      if (f.required && (!v || !v.trim())) {
-        toast.error(`${f.label} is required`);
-        return false;
-      }
+      if (f.required && (!v || !v.trim())) { toast.error(`${f.label} is required`); return false; }
     }
     return true;
   };
-
   const next = () => {
     if (!validateStep()) return;
-    if (step < steps.length - 1) setStep(step + 1);
-    else submit();
+    if (step < steps.length - 1) setStep(step + 1); else submit();
   };
-
   const submit = async () => {
     const parsed = schema.safeParse(data);
-    if (!parsed.success) {
-      toast.error(parsed.error.issues[0].message);
-      return;
-    }
+    if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     setSubmitting(true);
     try {
-      const payload: any = {
-        ...parsed.data,
-        user_agent: navigator.userAgent.slice(0, 500),
-      };
-      const { error } = await supabase
-        .from("campus_ambassador_applications")
-        .insert(payload);
+      const payload: any = { ...parsed.data, user_agent: navigator.userAgent.slice(0, 500) };
+      const { error } = await supabase.from("campus_ambassador_applications").insert(payload);
       if (error) throw error;
       setSubmitted(true);
       toast.success("Application submitted! 🎉");
     } catch (e: any) {
       toast.error(e.message || "Submission failed. Try again.");
-    } finally {
-      setSubmitting(false);
-    }
+    } finally { setSubmitting(false); }
   };
 
   return (
     <Section id="apply" className="bg-gradient-to-b from-transparent via-purple-950/20 to-transparent">
       <div ref={formRef} />
-      <SectionHead
-        eyebrow="Apply Now"
-        title="Become an |AI Leader|."
-        sub="Takes 90 seconds. No fee. We review every application personally."
-      />
+      <SectionHead eyebrow="Apply Now" title="Become an |AI Leader|." sub="Takes 90 seconds. No fee. We review every application personally." />
       <div className="max-w-2xl mx-auto">
-        <Glass className="p-6 md:p-10 relative overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(168,85,247,0.15),_transparent_50%)] pointer-events-none" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,_rgba(34,211,238,0.1),_transparent_50%)] pointer-events-none" />
-          <div className="relative z-10">
-            {submitted ? (
-              <div className="text-center py-10">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: "spring", bounce: 0.5 }}
-                  className="w-20 h-20 rounded-full bg-gradient-to-br from-green-400 to-cyan-400 flex items-center justify-center mx-auto mb-6"
-                >
-                  <Check className="w-10 h-10 text-white" strokeWidth={3} />
-                </motion.div>
-                <h3 className="text-3xl font-bold text-white mb-3">Welcome to the movement! 🎉</h3>
-                <p className="text-white/70 max-w-md mx-auto mb-6">
-                  Your application is in. Our team will personally review and reach out within
-                  <span className="text-cyan-300 font-semibold"> 48 hours</span> via WhatsApp & email.
-                </p>
-                <a
-                  href="https://wa.me/919999999999?text=Hi%20ACRY%20AI%2C%20I%20just%20applied%20for%20the%20Campus%20Ambassador%20Program."
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-green-500 text-white font-semibold hover:bg-green-600 transition-colors"
-                >
-                  <MessageCircle className="w-4 h-4" /> Connect on WhatsApp
-                </a>
-              </div>
-            ) : (
-              <>
-                {/* Progress */}
-                <div className="mb-8">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs uppercase tracking-widest text-cyan-300 font-bold">
-                      Step {step + 1} of {steps.length}
-                    </span>
-                    <span className="text-xs text-white/50">{steps[step].title}</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                    <motion.div
-                      animate={{ width: `${progress}%` }}
-                      transition={{ duration: 0.5 }}
-                      className="h-full rounded-full bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-400"
-                    />
-                  </div>
-                </div>
-
-                <AnimatePresence mode="wait">
+        <div className="relative">
+          {/* Glow */}
+          <div className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-purple-500/30 via-blue-500/30 to-cyan-400/30 blur-2xl" />
+          <Glass className="relative p-6 md:p-10 overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(168,85,247,0.15),_transparent_50%)] pointer-events-none" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,_rgba(34,211,238,0.1),_transparent_50%)] pointer-events-none" />
+            <div className="relative z-10">
+              {submitted ? (
+                <div className="text-center py-10">
                   <motion.div
-                    key={step}
-                    initial={{ opacity: 0, x: 30 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -30 }}
-                    transition={{ duration: 0.3 }}
-                    className="space-y-4"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", bounce: 0.5 }}
+                    className="w-20 h-20 rounded-full bg-gradient-to-br from-green-400 to-cyan-400 flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-green-400/40"
                   >
-                    {steps[step].fields.map((f: any) => (
-                      <div key={f.name}>
-                        <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/60 mb-2">
-                          <f.icon className="w-3.5 h-3.5 text-cyan-300" />
-                          {f.label} {f.required && <span className="text-purple-400">*</span>}
-                        </label>
-                        {f.multiline ? (
-                          <textarea
-                            value={(data as any)[f.name]}
-                            onChange={(e) => setData({ ...data, [f.name]: e.target.value })}
-                            placeholder={f.placeholder}
-                            rows={4}
-                            className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20 transition-all resize-none"
-                          />
-                        ) : (
-                          <input
-                            type={f.type || "text"}
-                            value={(data as any)[f.name]}
-                            onChange={(e) => setData({ ...data, [f.name]: e.target.value })}
-                            placeholder={f.placeholder}
-                            className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20 transition-all"
-                          />
-                        )}
-                      </div>
-                    ))}
+                    <Check className="w-10 h-10 text-white" strokeWidth={3} />
                   </motion.div>
-                </AnimatePresence>
-
-                <div className="flex items-center justify-between mt-8 gap-3">
-                  <button
-                    onClick={() => setStep(Math.max(0, step - 1))}
-                    disabled={step === 0}
-                    className="px-5 py-3 rounded-xl text-white/60 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors font-medium"
+                  <h3 className="text-3xl font-bold text-white mb-3">Welcome to the movement! 🎉</h3>
+                  <p className="text-white/70 max-w-md mx-auto mb-6">
+                    Your application is in. Our team will personally review and reach out within
+                    <span className="text-cyan-300 font-semibold"> 48 hours</span> via WhatsApp & email.
+                  </p>
+                  <a
+                    href="https://wa.me/919999999999?text=Hi%20ACRY%20AI%2C%20I%20just%20applied%20for%20the%20Campus%20Ambassador%20Program."
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-green-500 text-white font-semibold hover:bg-green-600 transition-colors"
                   >
-                    ← Back
-                  </button>
-                  <button
-                    onClick={next}
-                    disabled={submitting}
-                    className="group relative inline-flex items-center justify-center gap-2 px-7 py-3 rounded-xl font-bold text-white overflow-hidden transition-transform hover:scale-[1.03] disabled:opacity-60"
-                    style={{
-                      background: "linear-gradient(135deg, #a855f7 0%, #3b82f6 50%, #22d3ee 100%)",
-                      boxShadow: "0 8px 24px rgba(168, 85, 247, 0.35)",
-                    }}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                    <span className="relative z-10">
-                      {submitting ? "Submitting..." : step === steps.length - 1 ? "Apply Now & Become an AI Leader" : "Continue"}
-                    </span>
-                    {!submitting && <ArrowRight className="w-4 h-4 relative z-10 group-hover:translate-x-1 transition-transform" />}
-                  </button>
+                    <MessageCircle className="w-4 h-4" /> Connect on WhatsApp
+                  </a>
                 </div>
-              </>
-            )}
-          </div>
-        </Glass>
+              ) : (
+                <>
+                  <div className="mb-8">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs uppercase tracking-widest text-cyan-300 font-bold">
+                        Step {step + 1} of {steps.length}
+                      </span>
+                      <span className="text-xs text-white/50">{steps[step].title}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                      <motion.div
+                        animate={{ width: `${progress}%` }}
+                        transition={{ duration: 0.5 }}
+                        className="h-full rounded-full bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-400 relative overflow-hidden"
+                      >
+                        <motion.div
+                          animate={{ x: ["-100%", "200%"] }}
+                          transition={{ duration: 1.5, repeat: Infinity }}
+                          className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/60 to-transparent"
+                        />
+                      </motion.div>
+                    </div>
+                  </div>
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={step}
+                      initial={{ opacity: 0, x: 30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -30 }}
+                      transition={{ duration: 0.3 }}
+                      className="space-y-4"
+                    >
+                      {steps[step].fields.map((f: any) => (
+                        <div key={f.name}>
+                          <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/60 mb-2">
+                            <f.icon className="w-3.5 h-3.5 text-cyan-300" />
+                            {f.label} {f.required && <span className="text-purple-400">*</span>}
+                          </label>
+                          {f.multiline ? (
+                            <textarea
+                              value={(data as any)[f.name]}
+                              onChange={(e) => setData({ ...data, [f.name]: e.target.value })}
+                              placeholder={f.placeholder}
+                              rows={4}
+                              className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20 transition-all resize-none"
+                            />
+                          ) : (
+                            <input
+                              type={f.type || "text"}
+                              value={(data as any)[f.name]}
+                              onChange={(e) => setData({ ...data, [f.name]: e.target.value })}
+                              placeholder={f.placeholder}
+                              className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20 transition-all"
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </motion.div>
+                  </AnimatePresence>
+                  <div className="flex items-center justify-between mt-8 gap-3">
+                    <button
+                      onClick={() => setStep(Math.max(0, step - 1))}
+                      disabled={step === 0}
+                      className="px-5 py-3 rounded-xl text-white/60 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors font-medium"
+                    >
+                      ← Back
+                    </button>
+                    <Magnetic>
+                      <button
+                        onClick={next}
+                        disabled={submitting}
+                        className="group relative inline-flex items-center justify-center gap-2 px-7 py-3 rounded-xl font-bold text-white overflow-hidden disabled:opacity-60"
+                        style={{
+                          background: "linear-gradient(135deg, #a855f7 0%, #3b82f6 50%, #22d3ee 100%)",
+                          boxShadow: "0 8px 24px rgba(168, 85, 247, 0.35)",
+                        }}
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                        <span className="relative z-10">
+                          {submitting ? "Submitting..." : step === steps.length - 1 ? "Apply Now & Become an AI Leader" : "Continue"}
+                        </span>
+                        {!submitting && <ArrowRight className="w-4 h-4 relative z-10 group-hover:translate-x-1 transition-transform" />}
+                      </button>
+                    </Magnetic>
+                  </div>
+                </>
+              )}
+            </div>
+          </Glass>
+        </div>
       </div>
     </Section>
   );
 };
 
-// ─── FAQ ───
+/* FAQ */
 const FAQ = () => {
   const faqs = [
     { q: "Who can apply?", a: "Any college, university, or coaching student in India — UG, PG, JEE/NEET aspirants, AI enthusiasts. All streams welcome." },
@@ -989,14 +1332,9 @@ const FAQ = () => {
             transition={{ delay: i * 0.05 }}
           >
             <Glass className="overflow-hidden">
-              <button
-                onClick={() => setOpen(open === i ? null : i)}
-                className="w-full px-6 py-5 flex items-center justify-between text-left group"
-              >
+              <button onClick={() => setOpen(open === i ? null : i)} className="w-full px-6 py-5 flex items-center justify-between text-left">
                 <span className="font-semibold text-white pr-4">{f.q}</span>
-                <ChevronDown
-                  className={`w-5 h-5 text-cyan-300 flex-shrink-0 transition-transform ${open === i ? "rotate-180" : ""}`}
-                />
+                <ChevronDown className={`w-5 h-5 text-cyan-300 flex-shrink-0 transition-transform ${open === i ? "rotate-180" : ""}`} />
               </button>
               <AnimatePresence>
                 {open === i && (
@@ -1019,14 +1357,26 @@ const FAQ = () => {
   );
 };
 
-// ─── FINAL CTA ───
+/* FINAL CTA */
 const FinalCTA = ({ scrollToForm }: { scrollToForm: () => void }) => (
   <Section id="final" className="overflow-hidden">
     <div className="relative">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(168,85,247,0.3),_transparent_60%)]" />
-      <Glass className="relative p-10 md:p-20 text-center overflow-hidden">
-        <AIParticles />
+      <div className="relative rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-10 md:p-20 text-center overflow-hidden">
+        <div className="absolute inset-0">
+          <NeuralNetCanvas />
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/30 pointer-events-none" />
         <div className="relative z-10">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-400/30 bg-cyan-400/5 mb-6"
+          >
+            <Cpu className="w-3 h-3 text-cyan-300" />
+            <span className="text-xs font-semibold tracking-widest uppercase text-cyan-300">Your Move</span>
+          </motion.div>
           <motion.h2
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -1048,35 +1398,37 @@ const FinalCTA = ({ scrollToForm }: { scrollToForm: () => void }) => (
           >
             Join the movement. Build your future. Lead your campus.
           </motion.p>
-          <motion.button
-            initial={{ opacity: 0, scale: 0.9 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            onClick={scrollToForm}
-            className="group relative inline-flex items-center justify-center gap-2 px-10 py-5 rounded-2xl font-bold text-lg text-white overflow-hidden transition-transform hover:scale-[1.05]"
-            style={{
-              background: "linear-gradient(135deg, #a855f7 0%, #3b82f6 50%, #22d3ee 100%)",
-              boxShadow: "0 20px 60px rgba(168, 85, 247, 0.5)",
-            }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-            <Rocket className="w-5 h-5 relative z-10" />
-            <span className="relative z-10">Apply Now</span>
-            <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" />
-          </motion.button>
+          <Magnetic>
+            <motion.button
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+              onClick={scrollToForm}
+              className="group relative inline-flex items-center justify-center gap-2 px-10 py-5 rounded-2xl font-bold text-lg text-white overflow-hidden"
+              style={{
+                background: "linear-gradient(135deg, #a855f7 0%, #3b82f6 50%, #22d3ee 100%)",
+                boxShadow: "0 20px 60px rgba(168, 85, 247, 0.5)",
+              }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              <Rocket className="w-5 h-5 relative z-10" />
+              <span className="relative z-10">Apply Now</span>
+              <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" />
+            </motion.button>
+          </Magnetic>
           <div className="mt-12 inline-flex items-center gap-3 text-white/40 text-sm">
             <div className="h-px w-12 bg-white/20" />
             <span className="italic font-serif text-white/60">— Founder, ACRY AI</span>
             <div className="h-px w-12 bg-white/20" />
           </div>
         </div>
-      </Glass>
+      </div>
     </div>
   </Section>
 );
 
-// ─── Top Nav ───
+/* Top Nav */
 const TopNav = ({ scrollToForm }: { scrollToForm: () => void }) => {
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -1086,16 +1438,16 @@ const TopNav = ({ scrollToForm }: { scrollToForm: () => void }) => {
     return () => window.removeEventListener("scroll", on);
   }, []);
   return (
-    <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled ? "bg-black/70 backdrop-blur-xl border-b border-white/10" : "bg-transparent"
-      }`}
-    >
+    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? "bg-black/70 backdrop-blur-xl border-b border-white/10" : "bg-transparent"}`}>
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-cyan-400 flex items-center justify-center font-black text-white text-sm shadow-lg shadow-purple-500/30">
+        <Link to="/" className="flex items-center gap-2.5 group">
+          <motion.div
+            whileHover={{ rotate: 360 }}
+            transition={{ duration: 0.6 }}
+            className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-cyan-400 flex items-center justify-center font-black text-white text-sm shadow-lg shadow-purple-500/30"
+          >
             A
-          </div>
+          </motion.div>
           <div className="leading-tight">
             <div className="font-bold text-white text-sm">ACRY.ai</div>
             <div className="text-[9px] uppercase tracking-widest text-cyan-300">Campus Ambassador</div>
@@ -1107,30 +1459,29 @@ const TopNav = ({ scrollToForm }: { scrollToForm: () => void }) => {
           <a href="#community" className="hover:text-white transition-colors">Community</a>
           <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
         </div>
-        <button
-          onClick={scrollToForm}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white"
-          style={{
-            background: "linear-gradient(135deg, #a855f7 0%, #22d3ee 100%)",
-            boxShadow: "0 4px 16px rgba(168, 85, 247, 0.4)",
-          }}
-        >
-          <Rocket className="w-3.5 h-3.5" /> Apply Now
-        </button>
+        <Magnetic strength={0.2}>
+          <button
+            onClick={scrollToForm}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white"
+            style={{
+              background: "linear-gradient(135deg, #a855f7 0%, #22d3ee 100%)",
+              boxShadow: "0 4px 16px rgba(168, 85, 247, 0.4)",
+            }}
+          >
+            <Rocket className="w-3.5 h-3.5" /> Apply Now
+          </button>
+        </Magnetic>
       </div>
     </nav>
   );
 };
 
-// ─── Footer ───
 const PageFooter = () => (
   <footer className="relative border-t border-white/10 py-12 px-6 bg-black/60">
     <div className="max-w-7xl mx-auto grid md:grid-cols-4 gap-8">
       <div>
         <Link to="/" className="flex items-center gap-2.5 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-cyan-400 flex items-center justify-center font-black text-white">
-            A
-          </div>
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-cyan-400 flex items-center justify-center font-black text-white">A</div>
           <span className="font-bold text-white">ACRY.ai</span>
         </Link>
         <p className="text-sm text-white/50 leading-relaxed">India's largest AI Student Community & Leadership Ecosystem.</p>
@@ -1160,11 +1511,7 @@ const PageFooter = () => (
         </ul>
         <div className="flex gap-3 mt-4">
           {[Instagram, Linkedin, MessageCircle].map((Icon, i) => (
-            <a
-              key={i}
-              href="#"
-              className="w-9 h-9 rounded-lg border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] flex items-center justify-center transition-colors"
-            >
+            <a key={i} href="#" className="w-9 h-9 rounded-lg border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] hover:border-cyan-400/30 flex items-center justify-center transition-all">
               <Icon className="w-4 h-4 text-white/70" />
             </a>
           ))}
@@ -1177,23 +1524,19 @@ const PageFooter = () => (
   </footer>
 );
 
-// ─── Sticky mobile CTA + WhatsApp float ───
 const FloatingCTAs = ({ scrollToForm }: { scrollToForm: () => void }) => (
   <>
-    {/* WhatsApp float (all viewports) */}
     <a
       href="https://wa.me/919999999999?text=Hi%20ACRY%20AI%2C%20I%20want%20to%20know%20more%20about%20the%20Campus%20Ambassador%20Program."
       target="_blank"
       rel="noopener noreferrer"
-      className="fixed bottom-20 md:bottom-6 right-5 z-50 w-13 h-13 rounded-full bg-green-500 hover:bg-green-600 flex items-center justify-center shadow-2xl shadow-green-500/40 transition-all hover:scale-110"
+      className="fixed bottom-20 md:bottom-6 right-5 z-50 rounded-full bg-green-500 hover:bg-green-600 flex items-center justify-center shadow-2xl shadow-green-500/40 transition-all hover:scale-110"
       style={{ width: 52, height: 52 }}
       aria-label="WhatsApp"
     >
       <MessageCircle className="w-6 h-6 text-white" />
       <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-300 animate-ping" />
     </a>
-
-    {/* Sticky mobile CTA */}
     <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden p-3 bg-gradient-to-t from-black via-black/90 to-transparent">
       <button
         onClick={scrollToForm}
@@ -1209,11 +1552,10 @@ const FloatingCTAs = ({ scrollToForm }: { scrollToForm: () => void }) => (
   </>
 );
 
-// ─── PAGE ───────────────────────────────────────────────
+/* PAGE */
 const CampusAmbassadorBlueprint = () => {
   const formRef = useRef<HTMLDivElement>(null);
-  const scrollToForm = () =>
-    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const scrollToForm = () => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   return (
     <div className="relative min-h-screen bg-[#05070d] text-white overflow-x-hidden font-sans">
@@ -1223,16 +1565,19 @@ const CampusAmbassadorBlueprint = () => {
         path="/campus-ambassador"
       />
 
-      {/* Global ambient backdrop */}
+      {/* Global backdrop */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-[#05070d]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(59,130,246,0.08),_transparent_50%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_rgba(168,85,247,0.08),_transparent_50%)]" />
       </div>
 
+      <Spotlight />
+
       <div className="relative z-10">
         <TopNav scrollToForm={scrollToForm} />
         <Hero scrollToForm={scrollToForm} />
+        <CampusMarquee />
         <FounderMessage />
         <WhyJoin />
         <WhatYouDo />
