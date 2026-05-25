@@ -117,44 +117,78 @@ const UserManagement = () => {
   const [bulkProcessing, setBulkProcessing] = useState(false);
   const [reminderSendingId, setReminderSendingId] = useState<string | null>(null);
   const [reminderChannelId, setReminderChannelId] = useState<"whatsapp" | "sms" | null>(null);
+  const [previewState, setPreviewState] = useState<
+    { channel: "whatsapp" | "sms"; ids: string[]; mode: "single" | "bulk" } | null
+  >(null);
+  const [previewSending, setPreviewSending] = useState(false);
 
-  const sendTrialReminder = async (userId: string, channel: "whatsapp" | "sms") => {
-    setReminderSendingId(userId);
-    setReminderChannelId(channel);
+  const openReminderPreview = (channel: "whatsapp" | "sms", ids: string[], mode: "single" | "bulk") => {
+    if (ids.length === 0) return;
+    setPreviewState({ channel, ids, mode });
+  };
+
+  const confirmSendReminder = async () => {
+    if (!previewState) return;
+    const { channel, ids, mode } = previewState;
+    setPreviewSending(true);
+    if (mode === "single") {
+      setReminderSendingId(ids[0]);
+      setReminderChannelId(channel);
+    } else {
+      setBulkProcessing(true);
+    }
     const { data, error } = await supabase.functions.invoke("bulk-trial-reminder", {
-      body: { user_ids: [userId], channel },
+      body: { user_ids: ids, channel },
     });
     if (error) {
       toast({ title: "Reminder failed", description: error.message, variant: "destructive" });
     } else {
       const stat = channel === "whatsapp" ? data?.whatsapp : data?.sms;
       toast({
-        title: `${channel === "whatsapp" ? "WhatsApp" : "SMS"} reminder sent`,
+        title: `${channel === "whatsapp" ? "WhatsApp" : "SMS"} reminder${ids.length > 1 ? "s" : ""} sent`,
         description: `Sent: ${stat?.sent ?? 0} · Failed: ${stat?.failed ?? 0}`,
       });
+      if (mode === "bulk") setSelectedIds(new Set());
     }
+    setPreviewSending(false);
     setReminderSendingId(null);
     setReminderChannelId(null);
+    setBulkProcessing(false);
+    setPreviewState(null);
   };
 
-  const bulkSendReminder = async (channel: "whatsapp" | "sms") => {
-    if (selectedIds.size === 0) return;
-    setBulkProcessing(true);
-    const ids = Array.from(selectedIds);
-    const { data, error } = await supabase.functions.invoke("bulk-trial-reminder", {
-      body: { user_ids: ids, channel },
+  // Build preview text matching server templates
+  const buildPreviewMessages = (channel: "whatsapp" | "sms", ids: string[]) => {
+    return ids.map((id) => {
+      const u = users.find((x) => x.id === id);
+      const sub = subscriptions.find((s) => s.user_id === id);
+      const end = (sub as any)?.trial_end_date || sub?.expires_at;
+      const diffDays = end
+        ? Math.max(0, Math.ceil((new Date(end).getTime() - Date.now()) / 86400000))
+        : 0;
+      const name = u?.display_name?.split(" ")?.[0] || "there";
+      const phone = u?.whatsapp_number || u?.phone || "";
+      const renewUrl = "https://acry.ai/app?tab=you&section=subscription";
+      let body = "";
+      if (channel === "sms") {
+        body =
+          diffDays <= 0
+            ? `ACRY: Your Premium plan expires in ${diffDays} days. Renew to keep your AI mentor active ${renewUrl} -ACRYAI`
+            : `ACRY: Your free trial ends in ${diffDays} days. Upgrade to Premium at Rs 149 per month ${renewUrl} -ACRYAI`;
+      } else {
+        const expiryDate = end ? new Date(end).toISOString().slice(0, 10) : "—";
+        body =
+          `Hi ${name} 👋\n\nYour ACRY Premium ${diffDays > 0 ? `expires in ${diffDays} day(s)` : "has expired"} (${expiryDate}).\n\nRenew at just ₹149/month and keep your AI mentor, SureShot predictions & decay shield active.\n\n👉 ${renewUrl}\n\nUse code RENEW for a special offer.\n— Team ACRY`;
+      }
+      return {
+        id,
+        name: u?.display_name || "Unnamed",
+        phone: phone ? `+${phone}` : "No number on file",
+        diffDays,
+        body,
+        hasNumber: !!phone,
+      };
     });
-    if (error) {
-      toast({ title: "Bulk reminder failed", description: error.message, variant: "destructive" });
-    } else {
-      const stat = channel === "whatsapp" ? data?.whatsapp : data?.sms;
-      toast({
-        title: `${channel === "whatsapp" ? "WhatsApp" : "SMS"} reminders dispatched`,
-        description: `Sent: ${stat?.sent ?? 0} · Failed: ${stat?.failed ?? 0}`,
-      });
-      setSelectedIds(new Set());
-    }
-    setBulkProcessing(false);
   };
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name_asc" | "name_desc">("newest");
   const [bulkConfirm, setBulkConfirm] = useState<{ action: "ban" | "unban" } | null>(null);
@@ -427,14 +461,14 @@ const UserManagement = () => {
             <span className="text-xs font-medium text-foreground">{selectedIds.size} user(s) selected</span>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => bulkSendReminder("whatsapp")}
+                onClick={() => openReminderPreview("whatsapp", Array.from(selectedIds), "bulk")}
                 disabled={bulkProcessing}
                 className="px-3 py-1.5 bg-success/15 text-success rounded-lg text-xs font-medium hover:bg-success/25 transition-colors flex items-center gap-1.5 disabled:opacity-50"
               >
                 <MessageCircle className="w-3 h-3" /> Trial Reminder · WhatsApp
               </button>
               <button
-                onClick={() => bulkSendReminder("sms")}
+                onClick={() => openReminderPreview("sms", Array.from(selectedIds), "bulk")}
                 disabled={bulkProcessing}
                 className="px-3 py-1.5 bg-primary/15 text-primary rounded-lg text-xs font-medium hover:bg-primary/25 transition-colors flex items-center gap-1.5 disabled:opacity-50"
               >
@@ -533,7 +567,7 @@ const UserManagement = () => {
                 })()}
                 <MiniSparkline data={studyActivity[u.id] || []} />
                 <button
-                  onClick={(e) => { e.stopPropagation(); sendTrialReminder(u.id, "whatsapp"); }}
+                  onClick={(e) => { e.stopPropagation(); openReminderPreview("whatsapp", [u.id], "single"); }}
                   disabled={reminderSendingId === u.id}
                   title="Send Trial End Reminder via WhatsApp"
                   className="shrink-0 p-1.5 rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors disabled:opacity-50"
@@ -543,7 +577,7 @@ const UserManagement = () => {
                     : <MessageCircle className="w-3.5 h-3.5" />}
                 </button>
                 <button
-                  onClick={(e) => { e.stopPropagation(); sendTrialReminder(u.id, "sms"); }}
+                  onClick={(e) => { e.stopPropagation(); openReminderPreview("sms", [u.id], "single"); }}
                   disabled={reminderSendingId === u.id}
                   title="Send Trial End Reminder via SMS"
                   className="shrink-0 p-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
@@ -660,6 +694,106 @@ const UserManagement = () => {
             </motion.div>
           </motion.div>
         )}
+      </AnimatePresence>
+
+      {/* Reminder preview dialog */}
+      <AnimatePresence>
+        {previewState && (() => {
+          const msgs = buildPreviewMessages(previewState.channel, previewState.ids);
+          const isWA = previewState.channel === "whatsapp";
+          const missing = msgs.filter((m) => !m.hasNumber).length;
+          return (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+              onClick={() => !previewSending && setPreviewState(null)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                onClick={(e) => e.stopPropagation()}
+                className="glass rounded-2xl neural-border max-w-lg w-full max-h-[85vh] flex flex-col"
+              >
+                <div className="p-5 border-b border-border/40 flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isWA ? "bg-success/15 text-success" : "bg-primary/15 text-primary"}`}>
+                    {isWA ? <MessageCircle className="w-5 h-5" /> : <Bell className="w-5 h-5" />}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-bold text-foreground">
+                      Preview {isWA ? "WhatsApp" : "SMS"} Reminder
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground">
+                      {msgs.length} recipient{msgs.length > 1 ? "s" : ""}
+                      {missing > 0 ? ` · ${missing} missing number` : ""}
+                      {" · "}Template: {isWA ? "ai_subscription_expiry" : "MSG91 DLT"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => !previewSending && setPreviewState(null)}
+                    disabled={previewSending}
+                    className="text-muted-foreground hover:text-foreground p-1 rounded disabled:opacity-50"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {msgs.slice(0, 5).map((m) => (
+                    <div key={m.id} className="rounded-xl border border-border/40 overflow-hidden">
+                      <div className="px-3 py-2 bg-secondary/40 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-foreground truncate">{m.name}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">{m.phone}</p>
+                        </div>
+                        <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full ${m.diffDays > 0 ? "bg-warning/15 text-warning" : "bg-destructive/15 text-destructive"}`}>
+                          {m.diffDays > 0 ? `${m.diffDays}d left` : "Expired"}
+                        </span>
+                      </div>
+                      <div className={`p-3 text-[12px] leading-relaxed whitespace-pre-wrap ${isWA ? "bg-success/5 text-foreground" : "bg-primary/5 text-foreground font-mono"}`}>
+                        {m.body}
+                      </div>
+                      {!m.hasNumber && (
+                        <div className="px-3 py-1.5 bg-destructive/10 text-destructive text-[10px]">
+                          ⚠ No {isWA ? "WhatsApp" : "phone"} number — will fail
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {msgs.length > 5 && (
+                    <p className="text-[11px] text-muted-foreground text-center py-2">
+                      + {msgs.length - 5} more recipient{msgs.length - 5 > 1 ? "s" : ""} (same template)
+                    </p>
+                  )}
+                </div>
+
+                <div className="p-4 border-t border-border/40 flex gap-2 justify-end">
+                  <button
+                    onClick={() => setPreviewState(null)}
+                    disabled={previewSending}
+                    className="px-4 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:bg-secondary transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmSendReminder}
+                    disabled={previewSending}
+                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
+                      isWA
+                        ? "bg-success text-success-foreground hover:bg-success/90"
+                        : "bg-primary text-primary-foreground hover:bg-primary/90"
+                    }`}
+                  >
+                    {previewSending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                    Send to {msgs.length}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
       </AnimatePresence>
     </div>
   );
