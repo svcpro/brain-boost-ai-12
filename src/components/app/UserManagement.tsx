@@ -115,6 +115,23 @@ const UserManagement = () => {
   const PAGE_SIZE = 20;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [reminderSendingId, setReminderSendingId] = useState<string | null>(null);
+
+  const sendTrialReminder = async (userId: string) => {
+    setReminderSendingId(userId);
+    const { data, error } = await supabase.functions.invoke("bulk-trial-reminder", {
+      body: { user_ids: [userId] },
+    });
+    if (error) {
+      toast({ title: "Reminder failed", description: error.message, variant: "destructive" });
+    } else {
+      toast({
+        title: "Trial reminder sent",
+        description: `WhatsApp: ${data?.whatsapp?.sent ?? 0} · SMS: ${data?.sms?.sent ?? 0}`,
+      });
+    }
+    setReminderSendingId(null);
+  };
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name_asc" | "name_desc">("newest");
   const [bulkConfirm, setBulkConfirm] = useState<{ action: "ban" | "unban" } | null>(null);
   const [studyActivity, setStudyActivity] = useState<Record<string, number[]>>({});
@@ -501,6 +518,14 @@ const UserManagement = () => {
                   );
                 })()}
                 <MiniSparkline data={studyActivity[u.id] || []} />
+                <button
+                  onClick={(e) => { e.stopPropagation(); sendTrialReminder(u.id); }}
+                  disabled={reminderSendingId === u.id}
+                  title="Send Trial End Reminder (WhatsApp + SMS)"
+                  className="shrink-0 p-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
+                >
+                  {reminderSendingId === u.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bell className="w-3.5 h-3.5" />}
+                </button>
                 <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
               </div>
             </motion.div>
