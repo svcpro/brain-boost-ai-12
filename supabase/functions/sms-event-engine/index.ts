@@ -388,6 +388,7 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
       category: ev.category,
       priority: ev.priority,
       source: source || `event:${event_type}`,
+      bypass_quota: bypass_quota === true,
     }),
   });
 
