@@ -21,6 +21,66 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+const MSG91_AUTH_KEY = Deno.env.get("MSG91_AUTH_KEY") || "";
+const WA_INTEGRATED_NUMBER = "15558451483";
+const WA_NAMESPACE = "27d18aad_0bc9_491c_ab4e_90e36bbe4c99";
+
+function normalizeIndianMobile(raw: unknown): string | null {
+  if (raw == null) return null;
+  const digits = String(raw).replace(/\D/g, "");
+  if (!digits) return null;
+  const cleaned = digits.startsWith("00") ? digits.slice(2) : digits;
+  if (/^\d{10}$/.test(cleaned)) return `91${cleaned}`;
+  if (/^0\d{10}$/.test(cleaned)) return `91${cleaned.slice(1)}`;
+  if (/^91\d{10}$/.test(cleaned)) return cleaned;
+  if (/^\d{11,15}$/.test(cleaned)) return cleaned;
+  return null;
+}
+
+async function sendTrialEndWhatsApp(opts: { phone: string; customerName: string; days: number }) {
+  if (!MSG91_AUTH_KEY) return { ok: false, error: "no_authkey" };
+  const mobile = normalizeIndianMobile(opts.phone);
+  if (!mobile) return { ok: false, error: "bad_phone" };
+  const payload = {
+    integrated_number: WA_INTEGRATED_NUMBER,
+    content_type: "template",
+    payload: {
+      messaging_product: "whatsapp",
+      type: "template",
+      template: {
+        name: "trial_end",
+        language: { code: "en", policy: "deterministic" },
+        namespace: WA_NAMESPACE,
+        to_and_components: [
+          {
+            to: [mobile],
+            components: {
+              body_days: { type: "text", value: String(opts.days), parameter_name: "days" },
+              body_customer_name: { type: "text", value: opts.customerName, parameter_name: "customer_name" },
+            },
+          },
+        ],
+      },
+    },
+  };
+  try {
+    const resp = await fetch(
+      "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", authkey: MSG91_AUTH_KEY },
+        body: JSON.stringify(payload),
+      },
+    );
+    const text = await resp.text();
+    let raw: any;
+    try { raw = JSON.parse(text); } catch { raw = { message: text.slice(0, 300) }; }
+    return { ok: resp.ok && raw?.type !== "error", raw };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -151,6 +211,31 @@ Deno.serve(async (req) => {
                 },
               },
             })
+            .catch(() => {});
+        }
+
+        // 4. WhatsApp (non-blocking) — MSG91 Meta-approved `trial_end` template
+        const waPhone = (profile as any).whatsapp_number || profile.phone;
+        if (waPhone) {
+          sendTrialEndWhatsApp({
+            phone: waPhone,
+            customerName: name,
+            days: Math.max(0, diffDays),
+          })
+            .then((r) =>
+              sb.from("whatsapp_messages").insert({
+                user_id: profile.id,
+                to_number: String(waPhone),
+                message_type: "template",
+                template_name: "trial_end",
+                template_params: { customer_name: name, days: Math.max(0, diffDays) },
+                content: `Trial ending in ${Math.max(0, diffDays)} days`,
+                status: r.ok ? "sent" : "failed",
+                error_message: r.ok ? null : JSON.stringify(r).slice(0, 500),
+                direction: "outbound",
+                category: "critical",
+              }),
+            )
             .catch(() => {});
         }
 
