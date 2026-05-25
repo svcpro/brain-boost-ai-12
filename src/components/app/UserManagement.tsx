@@ -137,8 +137,20 @@ const UserManagement = () => {
     } else {
       setBulkProcessing(true);
     }
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData?.session?.access_token;
+    if (!accessToken) {
+      toast({ title: "Session expired", description: "Please sign in again.", variant: "destructive" });
+      setPreviewSending(false);
+      setReminderSendingId(null);
+      setReminderChannelId(null);
+      setBulkProcessing(false);
+      setPreviewState(null);
+      return;
+    }
     const { data, error } = await supabase.functions.invoke("bulk-trial-reminder", {
       body: { user_ids: ids, channel },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (error) {
       toast({ title: "Reminder failed", description: error.message, variant: "destructive" });
