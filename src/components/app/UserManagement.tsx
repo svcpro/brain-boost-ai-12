@@ -543,12 +543,24 @@ const UserManagement = () => {
                 })()}
                 <MiniSparkline data={studyActivity[u.id] || []} />
                 <button
-                  onClick={(e) => { e.stopPropagation(); sendTrialReminder(u.id); }}
+                  onClick={(e) => { e.stopPropagation(); sendTrialReminder(u.id, "whatsapp"); }}
                   disabled={reminderSendingId === u.id}
-                  title="Send Trial End Reminder (WhatsApp + SMS)"
+                  title="Send Trial End Reminder via WhatsApp"
+                  className="shrink-0 p-1.5 rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors disabled:opacity-50"
+                >
+                  {reminderSendingId === u.id && reminderChannelId === "whatsapp"
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <MessageCircle className="w-3.5 h-3.5" />}
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); sendTrialReminder(u.id, "sms"); }}
+                  disabled={reminderSendingId === u.id}
+                  title="Send Trial End Reminder via SMS"
                   className="shrink-0 p-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
                 >
-                  {reminderSendingId === u.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bell className="w-3.5 h-3.5" />}
+                  {reminderSendingId === u.id && reminderChannelId === "sms"
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <Bell className="w-3.5 h-3.5" />}
                 </button>
                 <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
               </div>
