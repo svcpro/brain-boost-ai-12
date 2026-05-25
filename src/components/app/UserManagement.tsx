@@ -137,32 +137,22 @@ const UserManagement = () => {
     } else {
       setBulkProcessing(true);
     }
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData.user) {
-      await supabase.auth.signOut({ scope: "local" });
-      toast({ title: "Session expired", description: "Please sign in again before sending reminders.", variant: "destructive" });
-      setPreviewSending(false);
-      setReminderSendingId(null);
-      setReminderChannelId(null);
-      setBulkProcessing(false);
-      setPreviewState(null);
-      return;
-    }
-    const { data: sessionData, error: refreshError } = await supabase.auth.refreshSession();
-    const accessToken = sessionData?.session?.access_token;
-    if (refreshError || !accessToken) {
-      await supabase.auth.signOut({ scope: "local" });
-      toast({ title: "Session refresh failed", description: "Please sign in again before sending reminders.", variant: "destructive" });
-      setPreviewSending(false);
-      setReminderSendingId(null);
-      setReminderChannelId(null);
-      setBulkProcessing(false);
-      setPreviewState(null);
-      return;
-    }
-    let data: any = null;
-    let error: any = null;
     try {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData.user) {
+        await supabase.auth.signOut({ scope: "local" });
+        toast({ title: "Session expired", description: "Please sign in again before sending reminders.", variant: "destructive" });
+        return;
+      }
+
+      const { data: sessionData, error: refreshError } = await supabase.auth.refreshSession();
+      const accessToken = sessionData?.session?.access_token;
+      if (refreshError || !accessToken) {
+        await supabase.auth.signOut({ scope: "local" });
+        toast({ title: "Session refresh failed", description: "Please sign in again before sending reminders.", variant: "destructive" });
+        return;
+      }
+
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bulk-trial-reminder`, {
         method: "POST",
         headers: {
@@ -172,31 +162,32 @@ const UserManagement = () => {
         },
         body: JSON.stringify({ user_ids: ids, channel }),
       });
-      data = await response.json().catch(() => null);
+      const data = await response.json().catch(() => null);
       if (!response.ok) {
-        error = new Error(`Edge function returned ${response.status}: ${data?.error || response.statusText}`);
+        if (response.status === 401) await supabase.auth.signOut({ scope: "local" });
+        throw new Error(`Edge function returned ${response.status}: ${data?.error || response.statusText}`);
       }
-    } catch (invokeError) {
-      error = invokeError instanceof Error ? invokeError : new Error(String(invokeError));
-    }
-    if (error) {
-      if (String(error.message || "").includes("401")) {
-        await supabase.auth.signOut({ scope: "local" });
-      }
-      toast({ title: "Reminder failed", description: error.message, variant: "destructive" });
-    } else {
+
       const stat = channel === "whatsapp" ? data?.whatsapp : data?.sms;
       toast({
         title: `${channel === "whatsapp" ? "WhatsApp" : "SMS"} reminder${ids.length > 1 ? "s" : ""} sent`,
         description: `Sent: ${stat?.sent ?? 0} · Failed: ${stat?.failed ?? 0}`,
       });
       if (mode === "bulk") setSelectedIds(new Set());
+    } catch (invokeError) {
+      const message = invokeError instanceof Error ? invokeError.message : String(invokeError);
+      toast({
+        title: "Reminder failed",
+        description: message || "Please sign in again and retry.",
+        variant: "destructive",
+      });
+    } finally {
+      setPreviewSending(false);
+      setReminderSendingId(null);
+      setReminderChannelId(null);
+      setBulkProcessing(false);
+      setPreviewState(null);
     }
-    setPreviewSending(false);
-    setReminderSendingId(null);
-    setReminderChannelId(null);
-    setBulkProcessing(false);
-    setPreviewState(null);
   };
 
   // Live template bodies fetched from DB so preview = sent message
