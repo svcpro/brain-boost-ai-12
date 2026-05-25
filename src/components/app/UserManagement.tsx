@@ -695,6 +695,106 @@ const UserManagement = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Reminder preview dialog */}
+      <AnimatePresence>
+        {previewState && (() => {
+          const msgs = buildPreviewMessages(previewState.channel, previewState.ids);
+          const isWA = previewState.channel === "whatsapp";
+          const missing = msgs.filter((m) => !m.hasNumber).length;
+          return (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+              onClick={() => !previewSending && setPreviewState(null)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                onClick={(e) => e.stopPropagation()}
+                className="glass rounded-2xl neural-border max-w-lg w-full max-h-[85vh] flex flex-col"
+              >
+                <div className="p-5 border-b border-border/40 flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isWA ? "bg-success/15 text-success" : "bg-primary/15 text-primary"}`}>
+                    {isWA ? <MessageCircle className="w-5 h-5" /> : <Bell className="w-5 h-5" />}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-bold text-foreground">
+                      Preview {isWA ? "WhatsApp" : "SMS"} Reminder
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground">
+                      {msgs.length} recipient{msgs.length > 1 ? "s" : ""}
+                      {missing > 0 ? ` · ${missing} missing number` : ""}
+                      {" · "}Template: {isWA ? "ai_subscription_expiry" : "MSG91 DLT"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => !previewSending && setPreviewState(null)}
+                    disabled={previewSending}
+                    className="text-muted-foreground hover:text-foreground p-1 rounded disabled:opacity-50"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {msgs.slice(0, 5).map((m) => (
+                    <div key={m.id} className="rounded-xl border border-border/40 overflow-hidden">
+                      <div className="px-3 py-2 bg-secondary/40 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-foreground truncate">{m.name}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">{m.phone}</p>
+                        </div>
+                        <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full ${m.diffDays > 0 ? "bg-warning/15 text-warning" : "bg-destructive/15 text-destructive"}`}>
+                          {m.diffDays > 0 ? `${m.diffDays}d left` : "Expired"}
+                        </span>
+                      </div>
+                      <div className={`p-3 text-[12px] leading-relaxed whitespace-pre-wrap ${isWA ? "bg-success/5 text-foreground" : "bg-primary/5 text-foreground font-mono"}`}>
+                        {m.body}
+                      </div>
+                      {!m.hasNumber && (
+                        <div className="px-3 py-1.5 bg-destructive/10 text-destructive text-[10px]">
+                          ⚠ No {isWA ? "WhatsApp" : "phone"} number — will fail
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {msgs.length > 5 && (
+                    <p className="text-[11px] text-muted-foreground text-center py-2">
+                      + {msgs.length - 5} more recipient{msgs.length - 5 > 1 ? "s" : ""} (same template)
+                    </p>
+                  )}
+                </div>
+
+                <div className="p-4 border-t border-border/40 flex gap-2 justify-end">
+                  <button
+                    onClick={() => setPreviewState(null)}
+                    disabled={previewSending}
+                    className="px-4 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:bg-secondary transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmSendReminder}
+                    disabled={previewSending}
+                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
+                      isWA
+                        ? "bg-success text-success-foreground hover:bg-success/90"
+                        : "bg-primary text-primary-foreground hover:bg-primary/90"
+                    }`}
+                  >
+                    {previewSending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                    Send to {msgs.length}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
     </div>
   );
 };
