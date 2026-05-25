@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
         action: "bulk_trial_reminder_sent",
         target_type: "user",
         target_id: tid,
-        details: { channels: ["whatsapp", "sms"] } as any,
+        details: { channel } as any,
       })),
     );
 
