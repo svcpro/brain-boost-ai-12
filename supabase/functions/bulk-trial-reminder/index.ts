@@ -36,6 +36,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const user_ids: string[] = Array.isArray(body.user_ids) ? body.user_ids : [];
+    const channel: "whatsapp" | "sms" | "both" = body.channel === "whatsapp" || body.channel === "sms" ? body.channel : "both";
     if (user_ids.length === 0) return json({ error: "user_ids required" }, 400);
 
     const renewUrl = "https://acry.ai/app?tab=you&section=subscription";
