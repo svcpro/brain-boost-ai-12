@@ -115,6 +115,23 @@ const UserManagement = () => {
   const PAGE_SIZE = 20;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [reminderSendingId, setReminderSendingId] = useState<string | null>(null);
+
+  const sendTrialReminder = async (userId: string) => {
+    setReminderSendingId(userId);
+    const { data, error } = await supabase.functions.invoke("bulk-trial-reminder", {
+      body: { user_ids: [userId] },
+    });
+    if (error) {
+      toast({ title: "Reminder failed", description: error.message, variant: "destructive" });
+    } else {
+      toast({
+        title: "Trial reminder sent",
+        description: `WhatsApp: ${data?.whatsapp?.sent ?? 0} · SMS: ${data?.sms?.sent ?? 0}`,
+      });
+    }
+    setReminderSendingId(null);
+  };
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name_asc" | "name_desc">("newest");
   const [bulkConfirm, setBulkConfirm] = useState<{ action: "ban" | "unban" } | null>(null);
   const [studyActivity, setStudyActivity] = useState<Record<string, number[]>>({});
