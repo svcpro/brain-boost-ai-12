@@ -139,6 +139,7 @@ const UserManagement = () => {
     }
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError || !userData.user) {
+      await supabase.auth.signOut({ scope: "local" });
       toast({ title: "Session expired", description: "Please sign in again before sending reminders.", variant: "destructive" });
       setPreviewSending(false);
       setReminderSendingId(null);
@@ -150,6 +151,7 @@ const UserManagement = () => {
     const { data: sessionData, error: refreshError } = await supabase.auth.refreshSession();
     const accessToken = sessionData?.session?.access_token;
     if (refreshError || !accessToken) {
+      await supabase.auth.signOut({ scope: "local" });
       toast({ title: "Session refresh failed", description: "Please sign in again before sending reminders.", variant: "destructive" });
       setPreviewSending(false);
       setReminderSendingId(null);
@@ -171,6 +173,9 @@ const UserManagement = () => {
       error = invokeError instanceof Error ? invokeError : new Error(String(invokeError));
     }
     if (error) {
+      if (String(error.message || "").includes("401")) {
+        await supabase.auth.signOut({ scope: "local" });
+      }
       toast({ title: "Reminder failed", description: error.message, variant: "destructive" });
     } else {
       const stat = channel === "whatsapp" ? data?.whatsapp : data?.sms;
