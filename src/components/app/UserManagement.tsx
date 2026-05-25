@@ -210,7 +210,7 @@ const UserManagement = () => {
           : "Loading approved MSG91 template…";
       } else {
         // MSG91 Meta-approved `trial_end` template — named params: customer_name + days
-        body = `Hi ${name}, your free trial will expire in ${diffDays} days. Renew now to keep your ACRY Premium access: https://acry.ai`;
+        body = `⚠️ Hello ${name} , your ACRY AI free trial will expire in ${diffDays} days.\n\nTo continue accessing your AI tools and services, please upgrade or renew your plan here:\nhttps://acry.ai\n\n🙏Thank you for using ACRY AI .\n\nThank you for choosing ACRY AI.`;
       }
       return {
         id,
