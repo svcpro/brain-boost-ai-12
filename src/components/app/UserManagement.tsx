@@ -185,8 +185,9 @@ const UserManagement = () => {
   }, []);
 
   const renderTpl = (tpl: string, vars: Record<string, string | number>) =>
-    tpl.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, k) =>
-      vars[k] !== undefined ? String(vars[k]) : `{{${k}}}`);
+    tpl
+      .replace(/##([a-zA-Z0-9_]+)##/g, (_, k) => (vars[k] !== undefined ? String(vars[k]) : `##${k}##`))
+      .replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, k) => (vars[k] !== undefined ? String(vars[k]) : `{{${k}}}`));
 
   // Build preview text matching server templates
   const buildPreviewMessages = (channel: "whatsapp" | "sms", ids: string[]) => {
