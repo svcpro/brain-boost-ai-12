@@ -116,21 +116,45 @@ const UserManagement = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkProcessing, setBulkProcessing] = useState(false);
   const [reminderSendingId, setReminderSendingId] = useState<string | null>(null);
+  const [reminderChannelId, setReminderChannelId] = useState<"whatsapp" | "sms" | null>(null);
 
-  const sendTrialReminder = async (userId: string) => {
+  const sendTrialReminder = async (userId: string, channel: "whatsapp" | "sms") => {
     setReminderSendingId(userId);
+    setReminderChannelId(channel);
     const { data, error } = await supabase.functions.invoke("bulk-trial-reminder", {
-      body: { user_ids: [userId] },
+      body: { user_ids: [userId], channel },
     });
     if (error) {
       toast({ title: "Reminder failed", description: error.message, variant: "destructive" });
     } else {
+      const stat = channel === "whatsapp" ? data?.whatsapp : data?.sms;
       toast({
-        title: "Trial reminder sent",
-        description: `WhatsApp: ${data?.whatsapp?.sent ?? 0} · SMS: ${data?.sms?.sent ?? 0}`,
+        title: `${channel === "whatsapp" ? "WhatsApp" : "SMS"} reminder sent`,
+        description: `Sent: ${stat?.sent ?? 0} · Failed: ${stat?.failed ?? 0}`,
       });
     }
     setReminderSendingId(null);
+    setReminderChannelId(null);
+  };
+
+  const bulkSendReminder = async (channel: "whatsapp" | "sms") => {
+    if (selectedIds.size === 0) return;
+    setBulkProcessing(true);
+    const ids = Array.from(selectedIds);
+    const { data, error } = await supabase.functions.invoke("bulk-trial-reminder", {
+      body: { user_ids: ids, channel },
+    });
+    if (error) {
+      toast({ title: "Bulk reminder failed", description: error.message, variant: "destructive" });
+    } else {
+      const stat = channel === "whatsapp" ? data?.whatsapp : data?.sms;
+      toast({
+        title: `${channel === "whatsapp" ? "WhatsApp" : "SMS"} reminders dispatched`,
+        description: `Sent: ${stat?.sent ?? 0} · Failed: ${stat?.failed ?? 0}`,
+      });
+      setSelectedIds(new Set());
+    }
+    setBulkProcessing(false);
   };
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name_asc" | "name_desc">("newest");
   const [bulkConfirm, setBulkConfirm] = useState<{ action: "ban" | "unban" } | null>(null);
