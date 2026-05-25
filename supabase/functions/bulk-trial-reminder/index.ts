@@ -81,38 +81,40 @@ Deno.serve(async (req) => {
                 : "";
           if (normalized && Deno.env.get("MSG91_AUTH_KEY")) {
             try {
+              const payload = {
+                integrated_number: "15558451483",
+                content_type: "template",
+                payload: {
+                  messaging_product: "whatsapp",
+                  type: "template",
+                  template: {
+                    name: "trial_end",
+                    language: { code: "en", policy: "deterministic" },
+                    namespace: "27d18aad_0bc9_491c_ab4e_90e36bbe4c99",
+                    to_and_components: [
+                      {
+                        to: [normalized],
+                        components: {
+                          body_customer_name: { type: "text", value: name, parameter_name: "customer_name" },
+                          body_days: { type: "text", value: String(diffDays), parameter_name: "days" },
+                        },
+                      },
+                    ],
+                  },
+                },
+              };
               const r = await fetch(
                 "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/",
                 {
                   method: "POST",
                   headers: { "Content-Type": "application/json", authkey: Deno.env.get("MSG91_AUTH_KEY")! },
-                  body: JSON.stringify({
-                    integrated_number: "15558451483",
-                    content_type: "template",
-                    payload: {
-                      messaging_product: "whatsapp",
-                      type: "template",
-                      template: {
-                        name: "trial_end",
-                        language: { code: "en", policy: "deterministic" },
-                        namespace: "27d18aad_0bc9_491c_ab4e_90e36bbe4c99",
-                        to_and_components: [
-                          {
-                            to: [normalized],
-                            components: {
-                              body_days: { type: "text", value: String(diffDays), parameter_name: "days" },
-                              body_customer_name: { type: "text", value: name, parameter_name: "customer_name" },
-                            },
-                          },
-                        ],
-                      },
-                    },
-                  }),
+                  body: JSON.stringify(payload),
                 },
               );
               const txt = await r.text();
-              let raw: any; try { raw = JSON.parse(txt); } catch { raw = { message: txt.slice(0, 300) }; }
-              const ok = r.ok && raw?.type !== "error";
+              let raw: any; try { raw = JSON.parse(txt); } catch { raw = { message: txt.slice(0, 500) }; }
+              const ok = r.ok && raw?.type !== "error" && raw?.status !== "error";
+              console.log(`[wa] to=${normalized} http=${r.status} ok=${ok} resp=${JSON.stringify(raw).slice(0, 400)}`);
               await sb.from("whatsapp_messages").insert({
                 user_id: p.id,
                 to_number: normalized,
@@ -121,12 +123,14 @@ Deno.serve(async (req) => {
                 template_params: { customer_name: name, days: diffDays },
                 content: `Trial ending in ${diffDays} days`,
                 status: ok ? "sent" : "failed",
-                error_message: ok ? null : JSON.stringify(raw).slice(0, 500),
+                error_code: ok ? null : String(r.status),
+                error_message: `[http ${r.status}] ${JSON.stringify(raw).slice(0, 800)}`,
                 direction: "outbound",
                 category: "critical",
               });
               if (ok) waSent++; else waFail++;
-            } catch {
+            } catch (err) {
+              console.error("[wa] exception", err);
               waFail++;
             }
           } else {
