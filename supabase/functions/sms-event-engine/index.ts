@@ -185,8 +185,8 @@ function fallbackValueForPlaceholder(key: string, vars: Record<string, unknown>,
   return defaults[lower] ?? "ACRY";
 }
 
-async function processOne(input: { event_type: string; user_id: string; data: Record<string, unknown>; override_mobile?: string; source?: string }) {
-  const { event_type, user_id, data, override_mobile, source } = input;
+async function processOne(input: { event_type: string; user_id: string; data: Record<string, unknown>; override_mobile?: string; source?: string; bypass_quota?: boolean }) {
+  const { event_type, user_id, data, override_mobile, source, bypass_quota } = input;
 
   // 1. Lookup event registry
   const { data: ev, error: evErr } = await sb
