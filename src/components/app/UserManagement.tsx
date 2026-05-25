@@ -137,36 +137,57 @@ const UserManagement = () => {
     } else {
       setBulkProcessing(true);
     }
-    const { data: sessionData } = await supabase.auth.getSession();
-    const accessToken = sessionData?.session?.access_token;
-    if (!accessToken) {
-      toast({ title: "Session expired", description: "Please sign in again.", variant: "destructive" });
-      setPreviewSending(false);
-      setReminderSendingId(null);
-      setReminderChannelId(null);
-      setBulkProcessing(false);
-      setPreviewState(null);
-      return;
-    }
-    const { data, error } = await supabase.functions.invoke("bulk-trial-reminder", {
-      body: { user_ids: ids, channel },
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    if (error) {
-      toast({ title: "Reminder failed", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData.user) {
+        await supabase.auth.signOut({ scope: "local" });
+        toast({ title: "Session expired", description: "Please sign in again before sending reminders.", variant: "destructive" });
+        return;
+      }
+
+      const { data: sessionData, error: refreshError } = await supabase.auth.refreshSession();
+      const accessToken = sessionData?.session?.access_token;
+      if (refreshError || !accessToken) {
+        await supabase.auth.signOut({ scope: "local" });
+        toast({ title: "Session refresh failed", description: "Please sign in again before sending reminders.", variant: "destructive" });
+        return;
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bulk-trial-reminder`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ user_ids: ids, channel }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        if (response.status === 401) await supabase.auth.signOut({ scope: "local" });
+        throw new Error(`Edge function returned ${response.status}: ${data?.error || response.statusText}`);
+      }
+
       const stat = channel === "whatsapp" ? data?.whatsapp : data?.sms;
       toast({
         title: `${channel === "whatsapp" ? "WhatsApp" : "SMS"} reminder${ids.length > 1 ? "s" : ""} sent`,
         description: `Sent: ${stat?.sent ?? 0} · Failed: ${stat?.failed ?? 0}`,
       });
       if (mode === "bulk") setSelectedIds(new Set());
+    } catch (invokeError) {
+      const message = invokeError instanceof Error ? invokeError.message : String(invokeError);
+      toast({
+        title: "Reminder failed",
+        description: message || "Please sign in again and retry.",
+        variant: "destructive",
+      });
+    } finally {
+      setPreviewSending(false);
+      setReminderSendingId(null);
+      setReminderChannelId(null);
+      setBulkProcessing(false);
+      setPreviewState(null);
     }
-    setPreviewSending(false);
-    setReminderSendingId(null);
-    setReminderChannelId(null);
-    setBulkProcessing(false);
-    setPreviewState(null);
   };
 
   // Live template bodies fetched from DB so preview = sent message
