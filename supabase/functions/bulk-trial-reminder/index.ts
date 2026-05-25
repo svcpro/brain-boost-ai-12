@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              event_type: diffDays <= 0 ? "trial_expired" : "trial_reminder",
+              event_type: diffDays <= 0 ? "subscription_expiring" : "trial_ending",
               user_id: p.id,
               source: "admin_bulk_trial_reminder",
               data: {
