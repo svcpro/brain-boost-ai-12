@@ -214,6 +214,31 @@ Deno.serve(async (req) => {
             .catch(() => {});
         }
 
+        // 4. WhatsApp (non-blocking) — MSG91 Meta-approved `trial_end` template
+        const waPhone = (profile as any).whatsapp_number || profile.phone;
+        if (waPhone) {
+          sendTrialEndWhatsApp({
+            phone: waPhone,
+            customerName: name,
+            days: Math.max(0, diffDays),
+          })
+            .then((r) =>
+              sb.from("whatsapp_messages").insert({
+                user_id: profile.id,
+                to_number: String(waPhone),
+                message_type: "template",
+                template_name: "trial_end",
+                template_params: { customer_name: name, days: Math.max(0, diffDays) },
+                content: `Trial ending in ${Math.max(0, diffDays)} days`,
+                status: r.ok ? "sent" : "failed",
+                error_message: r.ok ? null : JSON.stringify(r).slice(0, 500),
+                direction: "outbound",
+                category: "critical",
+              }),
+            )
+            .catch(() => {});
+        }
+
         sent++;
       } catch (e) {
         console.warn("trial reminder failed for", sub.user_id, e);
