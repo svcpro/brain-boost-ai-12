@@ -93,27 +93,14 @@ Deno.serve(async (req) => {
               data: { name, days: diffDays, link: renewUrl, url: renewUrl },
             }),
           });
-          if (r.ok) {
-            sent++;
-            auditRows.push({
-              admin_id: null,
-              action: "auto_trial_reminder_sent",
-              target_type: "user",
-              target_id: p.id,
-              details: { days: diffDays, channel: "sms" } as any,
-            });
-          } else {
-            failed++;
-          }
+          if (r.ok) sent++;
+          else failed++;
         } catch {
           failed++;
         }
       }),
     );
 
-    if (auditRows.length) {
-      await sb.from("admin_audit_logs").insert(auditRows);
-    }
 
     return json({
       ok: true,
