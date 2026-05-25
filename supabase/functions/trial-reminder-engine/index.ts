@@ -22,8 +22,8 @@ const corsHeaders = {
 };
 
 const MSG91_AUTH_KEY = Deno.env.get("MSG91_AUTH_KEY") || "";
-const WA_INTEGRATED_NUMBER = Deno.env.get("MSG91_WA_INTEGRATED_NUMBER") || "918796032562";
-const WA_NAMESPACE = Deno.env.get("MSG91_WA_NAMESPACE") || "5a93dcbd_6802_42d5_af95_17d4fd2d7441";
+const WA_INTEGRATED_NUMBER = Deno.env.get("MSG91_WA_INTEGRATED_NUMBER") || "15558451483";
+const WA_NAMESPACE = Deno.env.get("MSG91_WA_NAMESPACE") || "27d18aad_0bc9_491c_ab4e_90e36bbe4c99";
 
 function normalizeIndianMobile(raw: unknown): string | null {
   if (raw == null) return null;
