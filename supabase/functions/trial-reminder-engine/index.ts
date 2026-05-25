@@ -48,7 +48,7 @@ async function sendTrialEndWhatsApp(opts: { phone: string; customerName: string;
       messaging_product: "whatsapp",
       type: "template",
       template: {
-        name: "trial_end",
+        name: Deno.env.get("MSG91_WA_TRIAL_TEMPLATE") || "trial_end",
         language: { code: "en", policy: "deterministic" },
         namespace: WA_NAMESPACE,
         to_and_components: [
