@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
     const channel: "whatsapp" | "sms" | "both" = body.channel === "whatsapp" || body.channel === "sms" ? body.channel : "both";
     if (user_ids.length === 0) return json({ error: "user_ids required" }, 400);
 
-    const renewUrl = "https://acry.ai/app?tab=you&section=subscription";
+    const renewUrl = "https://acry.ai";
 
     // Fetch user profile + subscription info for personalization
     const [{ data: profiles }, { data: subs }] = await Promise.all([

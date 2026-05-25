@@ -206,7 +206,7 @@ const UserManagement = () => {
         const isExpiring = diffDays <= 0;
         const tpl = isExpiring ? templateBodies.sms_expiring : templateBodies.sms_trial;
         const link = (isExpiring ? templateBodies.sms_expiring_url : templateBodies.sms_trial_url)
-          || "https://acry.ai/app?tab=you";
+          || "https://acry.ai";
         body = tpl
           ? renderTpl(tpl, { days: diffDays, day: diffDays, link, url: link, name })
           : "Loading approved MSG91 template…";
