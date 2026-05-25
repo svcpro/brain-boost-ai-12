@@ -95,8 +95,8 @@ Deno.serve(async (req) => {
                       {
                         to: [normalized],
                         components: {
-                          body_1: { type: "text", value: name },
-                          body_2: { type: "text", value: String(diffDays) },
+                          body_customer_name: { type: "text", value: name, parameter_name: "customer_name" },
+                          body_days: { type: "text", value: String(diffDays), parameter_name: "days" },
                         },
                       },
                     ],
