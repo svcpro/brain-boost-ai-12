@@ -208,7 +208,7 @@ const UserManagement = () => {
         const link = (isExpiring ? templateBodies.sms_expiring_url : templateBodies.sms_trial_url)
           || "https://acry.ai/app?tab=you";
         body = tpl
-          ? renderTpl(tpl, { days: diffDays, link, name })
+          ? renderTpl(tpl, { days: diffDays, day: diffDays, link, url: link, name })
           : "Loading approved MSG91 template…";
       } else {
         body = templateBodies.wa
