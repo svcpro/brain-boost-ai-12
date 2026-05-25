@@ -6,7 +6,7 @@ import {
   BookOpen, Brain, TrendingUp, Calendar, Shield, Ban,
   CheckCircle2, XCircle, Eye, EyeOff, Crown, Star, BarChart3, Download,
   CheckSquare, Square, MinusSquare, ArrowUpDown, ArrowUp, ArrowDown,
-  Target, Award, Bell, Send, Sparkles, Key, Copy, RefreshCw, MessageCircle
+  Target, Award, Bell, Send, Sparkles, Key, Copy, RefreshCw, MessageCircle, ExternalLink
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -210,8 +210,8 @@ const UserManagement = () => {
           : "Loading approved MSG91 template…";
       } else {
         // MSG91 Meta-approved `trial_end` template — named params: customer_name + days
-        // Body text matches exactly; URL is rendered via the "Renew Now" CTA button (not inline)
-        body = `⚠️ Hello ${name} , your ACRY AI free trial will expire in ${diffDays} days.\n\nTo continue accessing your AI tools and services, please upgrade or renew your plan here:\n\n🙏Thank you for using ACRY AI .\n\nThank you for choosing ACRY AI.\n\n🔗 Renew Now → https://acry.ai`;
+        // Body text matches template exactly; the URL is a separate CTA button rendered below.
+        body = `⚠️ Hello ${name} , your ACRY AI free trial will expire in ${diffDays} days.\n\nTo continue accessing your AI tools and services, please upgrade or renew your plan here:\n\n🙏Thank you for using ACRY AI .\n\nThank you for choosing ACRY AI.`;
       }
       return {
         id,
@@ -785,8 +785,23 @@ const UserManagement = () => {
                           {m.diffDays > 0 ? `${m.diffDays}d left` : "Expired"}
                         </span>
                       </div>
-                      <div className={`p-3 text-[12px] leading-relaxed whitespace-pre-wrap ${isWA ? "bg-success/5 text-foreground" : "bg-primary/5 text-foreground font-mono"}`}>
-                        {m.body}
+                      <div className={`${isWA ? "bg-success/5" : "bg-primary/5 font-mono"} text-foreground`}>
+                        <div className="p-3 text-[12px] leading-relaxed whitespace-pre-wrap">
+                          {m.body}
+                        </div>
+                        {isWA && (
+                          <div className="mx-3 mb-3 border-t border-border/40 pt-2">
+                            <a
+                              href="https://acry.ai"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center justify-center gap-1.5 w-full py-2 rounded-md bg-background/60 hover:bg-background text-[12px] font-medium text-primary border border-border/40 transition-colors"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              Renew Now
+                            </a>
+                          </div>
+                        )}
                       </div>
                       {!m.hasNumber && (
                         <div className="px-3 py-1.5 bg-destructive/10 text-destructive text-[10px]">
