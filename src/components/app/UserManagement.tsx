@@ -137,10 +137,20 @@ const UserManagement = () => {
     } else {
       setBulkProcessing(true);
     }
-    const { data: sessionData } = await supabase.auth.getSession();
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData.user) {
+      toast({ title: "Session expired", description: "Please sign in again before sending reminders.", variant: "destructive" });
+      setPreviewSending(false);
+      setReminderSendingId(null);
+      setReminderChannelId(null);
+      setBulkProcessing(false);
+      setPreviewState(null);
+      return;
+    }
+    const { data: sessionData, error: refreshError } = await supabase.auth.refreshSession();
     const accessToken = sessionData?.session?.access_token;
-    if (!accessToken) {
-      toast({ title: "Session expired", description: "Please sign in again.", variant: "destructive" });
+    if (refreshError || !accessToken) {
+      toast({ title: "Session refresh failed", description: "Please sign in again before sending reminders.", variant: "destructive" });
       setPreviewSending(false);
       setReminderSendingId(null);
       setReminderChannelId(null);
