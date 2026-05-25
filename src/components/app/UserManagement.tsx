@@ -785,8 +785,23 @@ const UserManagement = () => {
                           {m.diffDays > 0 ? `${m.diffDays}d left` : "Expired"}
                         </span>
                       </div>
-                      <div className={`p-3 text-[12px] leading-relaxed whitespace-pre-wrap ${isWA ? "bg-success/5 text-foreground" : "bg-primary/5 text-foreground font-mono"}`}>
-                        {m.body}
+                      <div className={`${isWA ? "bg-success/5" : "bg-primary/5 font-mono"} text-foreground`}>
+                        <div className="p-3 text-[12px] leading-relaxed whitespace-pre-wrap">
+                          {m.body}
+                        </div>
+                        {isWA && (
+                          <div className="mx-3 mb-3 border-t border-border/40 pt-2">
+                            <a
+                              href="https://acry.ai"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center justify-center gap-1.5 w-full py-2 rounded-md bg-background/60 hover:bg-background text-[12px] font-medium text-primary border border-border/40 transition-colors"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              Renew Now
+                            </a>
+                          </div>
+                        )}
                       </div>
                       {!m.hasNumber && (
                         <div className="px-3 py-1.5 bg-destructive/10 text-destructive text-[10px]">
