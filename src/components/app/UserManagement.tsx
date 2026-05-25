@@ -163,12 +163,19 @@ const UserManagement = () => {
     let data: any = null;
     let error: any = null;
     try {
-      const result = await supabase.functions.invoke("bulk-trial-reminder", {
-        body: { user_ids: ids, channel },
-        headers: { Authorization: `Bearer ${accessToken}` },
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bulk-trial-reminder`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ user_ids: ids, channel }),
       });
-      data = result.data;
-      error = result.error;
+      data = await response.json().catch(() => null);
+      if (!response.ok) {
+        error = new Error(`Edge function returned ${response.status}: ${data?.error || response.statusText}`);
+      }
     } catch (invokeError) {
       error = invokeError instanceof Error ? invokeError : new Error(String(invokeError));
     }
