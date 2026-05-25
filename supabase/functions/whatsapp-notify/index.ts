@@ -23,9 +23,10 @@ function normalizeIndianMobile(raw: unknown): string | null {
   const digits = String(raw).replace(/\D/g, "");
   if (!digits) return null;
   const cleaned = digits.startsWith("00") ? digits.slice(2) : digits;
-  if (/^\d{10}$/.test(cleaned)) return `91${cleaned}`;
-  if (/^0\d{10}$/.test(cleaned)) return `91${cleaned.slice(1)}`;
-  if (/^91\d{10}$/.test(cleaned)) return cleaned;
+  if (/^[6-9]\d{9}$/.test(cleaned)) return `91${cleaned}`;
+  if (/^0[6-9]\d{9}$/.test(cleaned)) return `91${cleaned.slice(1)}`;
+  if (/^091[6-9]\d{9}$/.test(cleaned)) return cleaned.slice(1);
+  if (/^91[6-9]\d{9}$/.test(cleaned)) return cleaned;
   return null;
 }
 
@@ -45,14 +46,22 @@ interface Config {
 
 async function loadConfig(supabase: any): Promise<Config> {
   const { data } = await supabase.from("whatsapp_config").select("*").limit(1).maybeSingle();
-  return data ?? {
+  const fallbackConfig = {
     is_enabled: true,
     monthly_limit_per_user: 40,
     allowed_categories: ["critical", "engagement"],
     fallback_channels: ["push", "email"],
-    integrated_number: "918796032562",
-    default_namespace: "5a93dcbd_6802_42d5_af95_17d4fd2d7441",
+    integrated_number: "15558451483",
+    default_namespace: "27d18aad_0bc9_491c_ab4e_90e36bbe4c99",
     auto_fallback_on_quota_exceeded: true,
+  };
+  const config = { ...fallbackConfig, ...(data ?? {}) };
+  return {
+    ...config,
+    integrated_number: Deno.env.get("MSG91_WA_INTEGRATED_NUMBER") ||
+      (config.integrated_number === "918796032562" ? fallbackConfig.integrated_number : config.integrated_number),
+    default_namespace: Deno.env.get("MSG91_WA_NAMESPACE") ||
+      (config.default_namespace === "5a93dcbd_6802_42d5_af95_17d4fd2d7441" ? fallbackConfig.default_namespace : config.default_namespace),
   };
 }
 
