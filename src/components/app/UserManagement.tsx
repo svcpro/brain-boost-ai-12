@@ -158,10 +158,18 @@ const UserManagement = () => {
       setPreviewState(null);
       return;
     }
-    const { data, error } = await supabase.functions.invoke("bulk-trial-reminder", {
-      body: { user_ids: ids, channel },
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    let data: any = null;
+    let error: any = null;
+    try {
+      const result = await supabase.functions.invoke("bulk-trial-reminder", {
+        body: { user_ids: ids, channel },
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      data = result.data;
+      error = result.error;
+    } catch (invokeError) {
+      error = invokeError instanceof Error ? invokeError : new Error(String(invokeError));
+    }
     if (error) {
       toast({ title: "Reminder failed", description: error.message, variant: "destructive" });
     } else {
