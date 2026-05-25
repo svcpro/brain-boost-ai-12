@@ -1,17 +1,17 @@
 // trial-reminder-engine — runs once a day, sends contextual reminders to users
-// during their 7-day free trial and right after it ends.
+// during their free trial and right after it ends.
 //
 // Channels (best-effort, fire-and-forget):
 //   - Push (send-push-notification)
 //   - Email (send-transactional-email)
-//   - SMS  (sms-event-engine, event_type: trial_reminder / trial_expired)
+//   - SMS  (sms-event-engine, event_type: trial_ending / trial_expired)
 //
 // Cadence:
-//   - Day 5 (2 days left)         → "Your trial ends soon" reminder
-//   - Day 6 (1 day left)          → "Last day of trial" warning
-//   - Day 7 / expiry day          → "Trial ended — renew now"
-//   - +1 day after expiry         → "Don't lose your progress" follow-up
-//   - +3 days after expiry        → final win-back nudge
+//   - Every day when 1–5 days remain → daily "trial ending" SMS/Push/Email
+//   - Day 0 (expiry day)             → "Trial ended — renew now"
+//   - +1 day / +3 days after expiry  → win-back follow-ups
+//
+// Idempotent per day: once the user renews (is_trial=false), they drop out automatically.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
     }
 
     let sent = 0;
-    const renewUrl = "https://acry.ai/app?tab=you&section=subscription";
+    const renewUrl = "https://acry.ai";
 
     for (const sub of subs) {
       try {
@@ -60,9 +60,12 @@ Deno.serve(async (req) => {
         const diffDays = Math.ceil((end - now) / 86400000);
 
         // Decide whether today is a reminder day
-        let phase: "ending_soon" | "last_day" | "expired_today" | "expired_followup" | null = null;
-        if (diffDays === 2) phase = "ending_soon";
-        else if (diffDays === 1) phase = "last_day";
+        //   1..5 → daily "ending" reminder
+        //   0    → expired today
+        //  -1,-3 → win-back follow-ups
+        let phase: "ending" | "last_day" | "expired_today" | "expired_followup" | null = null;
+        if (diffDays === 1) phase = "last_day";
+        else if (diffDays >= 2 && diffDays <= 5) phase = "ending";
         else if (diffDays === 0) phase = "expired_today";
         else if (diffDays === -1 || diffDays === -3) phase = "expired_followup";
         if (!phase) continue;
@@ -78,15 +81,15 @@ Deno.serve(async (req) => {
         const name = profile.display_name?.split(" ")?.[0] || "there";
 
         const COPY: Record<string, { title: string; body: string; sms_event: string }> = {
-          ending_soon: {
-            title: `${name}, 2 days left in your free trial ⏳`,
+          ending: {
+            title: `${name}, ${diffDays} days left in your free trial ⏳`,
             body: "Lock in Premium now to keep your AI brain, predictions and study plans.",
-            sms_event: "trial_reminder",
+            sms_event: "trial_ending",
           },
           last_day: {
             title: `Last day, ${name}! 🚨`,
             body: "Your free trial ends tomorrow — upgrade now to avoid losing access.",
-            sms_event: "trial_reminder",
+            sms_event: "trial_ending",
           },
           expired_today: {
             title: "Your free trial has ended 💔",
@@ -130,12 +133,15 @@ Deno.serve(async (req) => {
         }
 
         // 3. SMS (non-blocking)
+        // 3. SMS (non-blocking) — MSG91 approved trial template via sms-event-engine
         if (profile.phone) {
           sb.functions
             .invoke("sms-event-engine", {
               body: {
                 event_type: c.sms_event,
                 user_id: profile.id,
+                source: "trial_reminder_engine",
+                bypass_quota: true,
                 data: {
                   name,
                   days: Math.max(0, diffDays),
