@@ -577,7 +577,7 @@ const UserManagement = () => {
                     : <MessageCircle className="w-3.5 h-3.5" />}
                 </button>
                 <button
-                  onClick={(e) => { e.stopPropagation(); sendTrialReminder(u.id, "sms"); }}
+                  onClick={(e) => { e.stopPropagation(); openReminderPreview("sms", [u.id], "single"); }}
                   disabled={reminderSendingId === u.id}
                   title="Send Trial End Reminder via SMS"
                   className="shrink-0 p-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
