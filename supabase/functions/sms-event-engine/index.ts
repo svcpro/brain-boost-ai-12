@@ -451,7 +451,7 @@ Deno.serve(async (req) => {
 
     const results = await Promise.all(
       targets.map((uid) =>
-        processOne({ event_type, user_id: uid, data, override_mobile, source }).catch((e) => ({
+        processOne({ event_type, user_id: uid, data, override_mobile, source, bypass_quota }).catch((e) => ({
           ok: false,
           status: "exception",
           error: String(e?.message || e),
