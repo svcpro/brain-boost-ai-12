@@ -461,7 +461,7 @@ const UserManagement = () => {
             <span className="text-xs font-medium text-foreground">{selectedIds.size} user(s) selected</span>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => bulkSendReminder("whatsapp")}
+                onClick={() => openReminderPreview("whatsapp", Array.from(selectedIds), "bulk")}
                 disabled={bulkProcessing}
                 className="px-3 py-1.5 bg-success/15 text-success rounded-lg text-xs font-medium hover:bg-success/25 transition-colors flex items-center gap-1.5 disabled:opacity-50"
               >
