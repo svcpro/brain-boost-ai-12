@@ -169,16 +169,23 @@ const UserManagement = () => {
       const name = u?.display_name?.split(" ")?.[0] || "there";
       const phone = u?.whatsapp_number || u?.phone || "";
       const renewUrl = "https://acry.ai/app?tab=you&section=subscription";
+      const expiryDate = end ? new Date(end).toISOString().slice(0, 10) : "—";
       let body = "";
       if (channel === "sms") {
+        // Exact MSG91-approved DLT body
         body =
           diffDays <= 0
             ? `ACRY: Your Premium plan expires in ${diffDays} days. Renew to keep your AI mentor active ${renewUrl} -ACRYAI`
             : `ACRY: Your free trial ends in ${diffDays} days. Upgrade to Premium at Rs 149 per month ${renewUrl} -ACRYAI`;
       } else {
-        const expiryDate = end ? new Date(end).toISOString().slice(0, 10) : "—";
+        // Exact MSG91-approved WhatsApp template: ai_subscription_expiry
         body =
-          `Hi ${name} 👋\n\nYour ACRY Premium ${diffDays > 0 ? `expires in ${diffDays} day(s)` : "has expired"} (${expiryDate}).\n\nRenew at just ₹149/month and keep your AI mentor, SureShot predictions & decay shield active.\n\n👉 ${renewUrl}\n\nUse code RENEW for a special offer.\n— Team ACRY`;
+          `🧠✨ *Sub Expiry*\n\n` +
+          `Hey ${name}! 👋\n\n` +
+          `📊 Your ACRY Premium plan is expiring in ${diffDays} days on ${expiryDate}.\n` +
+          `🎯 Don't miss out on uninterrupted AI-powered preparation!\n` +
+          `🔥 Renew now and save with 149 + your exclusive discount RENEW.\n\n` +
+          `👉 _Renew Your Subscription Now_`;
       }
       return {
         id,
