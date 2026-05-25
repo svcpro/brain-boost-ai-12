@@ -1,6 +1,10 @@
 project_id = "yvxrsujwgmzdjzsjyqfb"
 
 [functions]
+  [functions.bulk-trial-reminder]
+    verify_jwt = false
+  [functions.trial-reminder-engine]
+    verify_jwt = false
   [functions.adaptive-difficulty]
     verify_jwt = false
   [functions.ai-behavior-analyzer]
