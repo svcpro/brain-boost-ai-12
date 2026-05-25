@@ -468,7 +468,7 @@ const UserManagement = () => {
                 <MessageCircle className="w-3 h-3" /> Trial Reminder · WhatsApp
               </button>
               <button
-                onClick={() => bulkSendReminder("sms")}
+                onClick={() => openReminderPreview("sms", Array.from(selectedIds), "bulk")}
                 disabled={bulkProcessing}
                 className="px-3 py-1.5 bg-primary/15 text-primary rounded-lg text-xs font-medium hover:bg-primary/25 transition-colors flex items-center gap-1.5 disabled:opacity-50"
               >
