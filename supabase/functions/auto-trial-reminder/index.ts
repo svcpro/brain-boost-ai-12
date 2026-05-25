@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
     const renewUrl = "https://acry.ai";
     let sent = 0,
       failed = 0;
-    const auditRows: any[] = [];
+
 
     await Promise.all(
       (profiles || []).map(async (p: any) => {
