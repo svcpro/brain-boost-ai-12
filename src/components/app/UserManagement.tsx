@@ -6,7 +6,7 @@ import {
   BookOpen, Brain, TrendingUp, Calendar, Shield, Ban,
   CheckCircle2, XCircle, Eye, EyeOff, Crown, Star, BarChart3, Download,
   CheckSquare, Square, MinusSquare, ArrowUpDown, ArrowUp, ArrowDown,
-  Target, Award, Bell, Send, Sparkles, Key, Copy, RefreshCw
+  Target, Award, Bell, Send, Sparkles, Key, Copy, RefreshCw, MessageCircle
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -116,21 +116,45 @@ const UserManagement = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkProcessing, setBulkProcessing] = useState(false);
   const [reminderSendingId, setReminderSendingId] = useState<string | null>(null);
+  const [reminderChannelId, setReminderChannelId] = useState<"whatsapp" | "sms" | null>(null);
 
-  const sendTrialReminder = async (userId: string) => {
+  const sendTrialReminder = async (userId: string, channel: "whatsapp" | "sms") => {
     setReminderSendingId(userId);
+    setReminderChannelId(channel);
     const { data, error } = await supabase.functions.invoke("bulk-trial-reminder", {
-      body: { user_ids: [userId] },
+      body: { user_ids: [userId], channel },
     });
     if (error) {
       toast({ title: "Reminder failed", description: error.message, variant: "destructive" });
     } else {
+      const stat = channel === "whatsapp" ? data?.whatsapp : data?.sms;
       toast({
-        title: "Trial reminder sent",
-        description: `WhatsApp: ${data?.whatsapp?.sent ?? 0} · SMS: ${data?.sms?.sent ?? 0}`,
+        title: `${channel === "whatsapp" ? "WhatsApp" : "SMS"} reminder sent`,
+        description: `Sent: ${stat?.sent ?? 0} · Failed: ${stat?.failed ?? 0}`,
       });
     }
     setReminderSendingId(null);
+    setReminderChannelId(null);
+  };
+
+  const bulkSendReminder = async (channel: "whatsapp" | "sms") => {
+    if (selectedIds.size === 0) return;
+    setBulkProcessing(true);
+    const ids = Array.from(selectedIds);
+    const { data, error } = await supabase.functions.invoke("bulk-trial-reminder", {
+      body: { user_ids: ids, channel },
+    });
+    if (error) {
+      toast({ title: "Bulk reminder failed", description: error.message, variant: "destructive" });
+    } else {
+      const stat = channel === "whatsapp" ? data?.whatsapp : data?.sms;
+      toast({
+        title: `${channel === "whatsapp" ? "WhatsApp" : "SMS"} reminders dispatched`,
+        description: `Sent: ${stat?.sent ?? 0} · Failed: ${stat?.failed ?? 0}`,
+      });
+      setSelectedIds(new Set());
+    }
+    setBulkProcessing(false);
   };
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name_asc" | "name_desc">("newest");
   const [bulkConfirm, setBulkConfirm] = useState<{ action: "ban" | "unban" } | null>(null);
@@ -403,28 +427,18 @@ const UserManagement = () => {
             <span className="text-xs font-medium text-foreground">{selectedIds.size} user(s) selected</span>
             <div className="flex items-center gap-2">
               <button
-                onClick={async () => {
-                  if (selectedIds.size === 0) return;
-                  setBulkProcessing(true);
-                  const ids = Array.from(selectedIds);
-                  const { data, error } = await supabase.functions.invoke("bulk-trial-reminder", {
-                    body: { user_ids: ids },
-                  });
-                  if (error) {
-                    toast({ title: "Failed to send reminders", description: error.message, variant: "destructive" });
-                  } else {
-                    toast({
-                      title: "Trial reminders dispatched",
-                      description: `WhatsApp: ${data?.whatsapp?.sent ?? 0} sent · SMS: ${data?.sms?.sent ?? 0} sent`,
-                    });
-                    setSelectedIds(new Set());
-                  }
-                  setBulkProcessing(false);
-                }}
+                onClick={() => bulkSendReminder("whatsapp")}
+                disabled={bulkProcessing}
+                className="px-3 py-1.5 bg-success/15 text-success rounded-lg text-xs font-medium hover:bg-success/25 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <MessageCircle className="w-3 h-3" /> Trial Reminder · WhatsApp
+              </button>
+              <button
+                onClick={() => bulkSendReminder("sms")}
                 disabled={bulkProcessing}
                 className="px-3 py-1.5 bg-primary/15 text-primary rounded-lg text-xs font-medium hover:bg-primary/25 transition-colors flex items-center gap-1.5 disabled:opacity-50"
               >
-                <Send className="w-3 h-3" /> Trial End Reminder (WA + SMS)
+                <Bell className="w-3 h-3" /> Trial Reminder · SMS
               </button>
               <button
                 onClick={() => setBulkConfirm({ action: "ban" })}
@@ -519,12 +533,24 @@ const UserManagement = () => {
                 })()}
                 <MiniSparkline data={studyActivity[u.id] || []} />
                 <button
-                  onClick={(e) => { e.stopPropagation(); sendTrialReminder(u.id); }}
+                  onClick={(e) => { e.stopPropagation(); sendTrialReminder(u.id, "whatsapp"); }}
                   disabled={reminderSendingId === u.id}
-                  title="Send Trial End Reminder (WhatsApp + SMS)"
+                  title="Send Trial End Reminder via WhatsApp"
+                  className="shrink-0 p-1.5 rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors disabled:opacity-50"
+                >
+                  {reminderSendingId === u.id && reminderChannelId === "whatsapp"
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <MessageCircle className="w-3.5 h-3.5" />}
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); sendTrialReminder(u.id, "sms"); }}
+                  disabled={reminderSendingId === u.id}
+                  title="Send Trial End Reminder via SMS"
                   className="shrink-0 p-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
                 >
-                  {reminderSendingId === u.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bell className="w-3.5 h-3.5" />}
+                  {reminderSendingId === u.id && reminderChannelId === "sms"
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <Bell className="w-3.5 h-3.5" />}
                 </button>
                 <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
               </div>

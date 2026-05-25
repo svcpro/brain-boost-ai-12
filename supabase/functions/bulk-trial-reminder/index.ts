@@ -36,6 +36,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const user_ids: string[] = Array.isArray(body.user_ids) ? body.user_ids : [];
+    const channel: "whatsapp" | "sms" | "both" = body.channel === "whatsapp" || body.channel === "sms" ? body.channel : "both";
     if (user_ids.length === 0) return json({ error: "user_ids required" }, 400);
 
     const renewUrl = "https://acry.ai/app?tab=you&section=subscription";
@@ -68,60 +69,64 @@ Deno.serve(async (req) => {
         const expiryDate = end ? new Date(end).toISOString().slice(0, 10) : "";
 
         // WhatsApp: ai_subscription_expiry template
-        try {
-          const r = await fetch(`${SUPABASE_URL}/functions/v1/whatsapp-notify`, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${SERVICE_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              action: "send",
-              user_id: p.id,
-              template_name: "ai_subscription_expiry",
-              category: "critical",
-              source: "admin_bulk_trial_reminder",
-              triggered_by: userData.user.id,
-              variables: {
-                name,
-                plan_name: "ACRY Premium",
-                days_remaining: String(diffDays),
-                expiry_date: expiryDate,
-                renewal_price: "149",
-                discount_code: "RENEW",
+        if (channel === "whatsapp" || channel === "both") {
+          try {
+            const r = await fetch(`${SUPABASE_URL}/functions/v1/whatsapp-notify`, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${SERVICE_KEY}`,
+                "Content-Type": "application/json",
               },
-            }),
-          });
-          if (r.ok) waSent++;
-          else waFail++;
-        } catch {
-          waFail++;
+              body: JSON.stringify({
+                action: "send",
+                user_id: p.id,
+                template_name: "ai_subscription_expiry",
+                category: "critical",
+                source: "admin_bulk_trial_reminder",
+                triggered_by: userData.user.id,
+                variables: {
+                  name,
+                  plan_name: "ACRY Premium",
+                  days_remaining: String(diffDays),
+                  expiry_date: expiryDate,
+                  renewal_price: "149",
+                  discount_code: "RENEW",
+                },
+              }),
+            });
+            if (r.ok) waSent++;
+            else waFail++;
+          } catch {
+            waFail++;
+          }
         }
 
-        // SMS: trial_reminder event
-        try {
-          const r = await fetch(`${SUPABASE_URL}/functions/v1/sms-event-engine`, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${SERVICE_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              event_type: diffDays <= 0 ? "subscription_expiring" : "trial_ending",
-              user_id: p.id,
-              source: "admin_bulk_trial_reminder",
-              data: {
-                name,
-                days: diffDays,
-                link: renewUrl,
-                url: renewUrl,
+        // SMS: MSG91 DLT template via registry
+        if (channel === "sms" || channel === "both") {
+          try {
+            const r = await fetch(`${SUPABASE_URL}/functions/v1/sms-event-engine`, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${SERVICE_KEY}`,
+                "Content-Type": "application/json",
               },
-            }),
-          });
-          if (r.ok) smsSent++;
-          else smsFail++;
-        } catch {
-          smsFail++;
+              body: JSON.stringify({
+                event_type: diffDays <= 0 ? "subscription_expiring" : "trial_ending",
+                user_id: p.id,
+                source: "admin_bulk_trial_reminder",
+                data: {
+                  name,
+                  days: diffDays,
+                  link: renewUrl,
+                  url: renewUrl,
+                },
+              }),
+            });
+            if (r.ok) smsSent++;
+            else smsFail++;
+          } catch {
+            smsFail++;
+          }
         }
       }),
     );
@@ -133,7 +138,7 @@ Deno.serve(async (req) => {
         action: "bulk_trial_reminder_sent",
         target_type: "user",
         target_id: tid,
-        details: { channels: ["whatsapp", "sms"] } as any,
+        details: { channel } as any,
       })),
     );
 
