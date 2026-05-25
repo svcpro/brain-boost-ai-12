@@ -210,7 +210,7 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
     return { ok: false, status: "no_template_mapped" };
   }
 
-  const isCritical = ev.bypass_quota === true || ["critical", "otp", "security", "payment"].includes(ev.category);
+  const isCritical = bypass_quota === true || ev.bypass_quota === true || ["critical", "otp", "security", "payment"].includes(ev.category);
 
   // 2. Dedupe + daily cap (skip for critical)
   if (!isCritical) {
