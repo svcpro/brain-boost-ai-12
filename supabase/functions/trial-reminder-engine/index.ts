@@ -133,12 +133,15 @@ Deno.serve(async (req) => {
         }
 
         // 3. SMS (non-blocking)
+        // 3. SMS (non-blocking) — MSG91 approved trial template via sms-event-engine
         if (profile.phone) {
           sb.functions
             .invoke("sms-event-engine", {
               body: {
                 event_type: c.sms_event,
                 user_id: profile.id,
+                source: "trial_reminder_engine",
+                bypass_quota: true,
                 data: {
                   name,
                   days: Math.max(0, diffDays),
