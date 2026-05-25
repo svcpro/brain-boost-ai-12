@@ -68,35 +68,68 @@ Deno.serve(async (req) => {
         const name = (p.display_name?.split(" ")?.[0]) || "there";
         const expiryDate = end ? new Date(end).toISOString().slice(0, 10) : "";
 
-        // WhatsApp: ai_subscription_expiry template
+        // WhatsApp: MSG91 Meta-approved `trial_end` template (direct)
         if (channel === "whatsapp" || channel === "both") {
-          try {
-            const r = await fetch(`${SUPABASE_URL}/functions/v1/whatsapp-notify`, {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${SERVICE_KEY}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                action: "send",
-                user_id: p.id,
-                template_name: "ai_subscription_expiry",
-                category: "critical",
-                source: "admin_bulk_trial_reminder",
-                triggered_by: userData.user.id,
-                variables: {
-                  name,
-                  plan_name: "ACRY Premium",
-                  days_remaining: String(diffDays),
-                  expiry_date: expiryDate,
-                  renewal_price: "149",
-                  discount_code: "RENEW",
+          const waPhone = p.whatsapp_number || p.phone;
+          const mobile = waPhone ? String(waPhone).replace(/\D/g, "") : "";
+          const normalized = /^\d{10}$/.test(mobile)
+            ? `91${mobile}`
+            : /^91\d{10}$/.test(mobile)
+              ? mobile
+              : mobile && /^\d{11,15}$/.test(mobile)
+                ? mobile
+                : "";
+          if (normalized && Deno.env.get("MSG91_AUTH_KEY")) {
+            try {
+              const r = await fetch(
+                "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/",
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", authkey: Deno.env.get("MSG91_AUTH_KEY")! },
+                  body: JSON.stringify({
+                    integrated_number: "15558451483",
+                    content_type: "template",
+                    payload: {
+                      messaging_product: "whatsapp",
+                      type: "template",
+                      template: {
+                        name: "trial_end",
+                        language: { code: "en", policy: "deterministic" },
+                        namespace: "27d18aad_0bc9_491c_ab4e_90e36bbe4c99",
+                        to_and_components: [
+                          {
+                            to: [normalized],
+                            components: {
+                              body_days: { type: "text", value: String(diffDays), parameter_name: "days" },
+                              body_customer_name: { type: "text", value: name, parameter_name: "customer_name" },
+                            },
+                          },
+                        ],
+                      },
+                    },
+                  }),
                 },
-              }),
-            });
-            if (r.ok) waSent++;
-            else waFail++;
-          } catch {
+              );
+              const txt = await r.text();
+              let raw: any; try { raw = JSON.parse(txt); } catch { raw = { message: txt.slice(0, 300) }; }
+              const ok = r.ok && raw?.type !== "error";
+              await sb.from("whatsapp_messages").insert({
+                user_id: p.id,
+                to_number: normalized,
+                message_type: "template",
+                template_name: "trial_end",
+                template_params: { customer_name: name, days: diffDays },
+                content: `Trial ending in ${diffDays} days`,
+                status: ok ? "sent" : "failed",
+                error_message: ok ? null : JSON.stringify(raw).slice(0, 500),
+                direction: "outbound",
+                category: "critical",
+              });
+              if (ok) waSent++; else waFail++;
+            } catch {
+              waFail++;
+            }
+          } else {
             waFail++;
           }
         }
