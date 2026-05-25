@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
                   type: "template",
                   template: {
                     name: Deno.env.get("MSG91_WA_TRIAL_TEMPLATE") || "trial_end",
-                    language: { code: "en", policy: "deterministic" },
+                    language: { code: Deno.env.get("MSG91_WA_TRIAL_LANG") || "en", policy: "deterministic" },
                     namespace: WA_NAMESPACE,
                     to_and_components: [
                       {
