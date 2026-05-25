@@ -15,6 +15,21 @@ const json = (d: unknown, s = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+const WA_INTEGRATED_NUMBER = Deno.env.get("MSG91_WA_INTEGRATED_NUMBER") || "918796032562";
+const WA_NAMESPACE = Deno.env.get("MSG91_WA_NAMESPACE") || "5a93dcbd_6802_42d5_af95_17d4fd2d7441";
+
+function normalizeIndianMobile(raw: unknown): string | null {
+  if (raw == null) return null;
+  const digits = String(raw).replace(/\D/g, "");
+  if (!digits) return null;
+  const cleaned = digits.startsWith("00") ? digits.slice(2) : digits;
+  if (/^[6-9]\d{9}$/.test(cleaned)) return `91${cleaned}`;
+  if (/^0[6-9]\d{9}$/.test(cleaned)) return `91${cleaned.slice(1)}`;
+  if (/^091[6-9]\d{9}$/.test(cleaned)) return cleaned.slice(1);
+  if (/^91[6-9]\d{9}$/.test(cleaned)) return cleaned;
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -71,18 +86,11 @@ Deno.serve(async (req) => {
         // WhatsApp: MSG91 Meta-approved `trial_end` template (direct)
         if (channel === "whatsapp" || channel === "both") {
           const waPhone = p.whatsapp_number || p.phone;
-          const mobile = waPhone ? String(waPhone).replace(/\D/g, "") : "";
-          const normalized = /^\d{10}$/.test(mobile)
-            ? `91${mobile}`
-            : /^91\d{10}$/.test(mobile)
-              ? mobile
-              : mobile && /^\d{11,15}$/.test(mobile)
-                ? mobile
-                : "";
+          const normalized = normalizeIndianMobile(waPhone);
           if (normalized && Deno.env.get("MSG91_AUTH_KEY")) {
             try {
               const payload = {
-                integrated_number: "15558451483",
+                integrated_number: WA_INTEGRATED_NUMBER,
                 content_type: "template",
                 payload: {
                   messaging_product: "whatsapp",
@@ -90,7 +98,7 @@ Deno.serve(async (req) => {
                   template: {
                     name: "trial_end",
                     language: { code: "en", policy: "deterministic" },
-                    namespace: "27d18aad_0bc9_491c_ab4e_90e36bbe4c99",
+                    namespace: WA_NAMESPACE,
                     to_and_components: [
                       {
                         to: [normalized],
