@@ -203,10 +203,8 @@ const UserManagement = () => {
       const expiryDate = end ? new Date(end).toISOString().slice(0, 10) : "—";
       let body = "";
       if (channel === "sms") {
-        const isExpiring = diffDays <= 0;
-        const tpl = isExpiring ? templateBodies.sms_expiring : templateBodies.sms_trial;
-        const link = (isExpiring ? templateBodies.sms_expiring_url : templateBodies.sms_trial_url)
-          || "https://acry.ai";
+        const tpl = templateBodies.sms_trial;
+        const link = templateBodies.sms_trial_url || "https://acry.ai";
         body = tpl
           ? renderTpl(tpl, { days: diffDays, day: diffDays, link, url: link, name })
           : "Loading approved MSG91 template…";
