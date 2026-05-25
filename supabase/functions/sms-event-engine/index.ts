@@ -432,7 +432,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = (await req.json().catch(() => ({}))) as EventInput;
-    const { event_type, user_id, user_ids, data = {}, override_mobile, source } = body;
+    const { event_type, user_id, user_ids, data = {}, override_mobile, source, bypass_quota } = body as any;
 
     if (!event_type) {
       return new Response(JSON.stringify({ ok: false, error: "event_type required" }), {
