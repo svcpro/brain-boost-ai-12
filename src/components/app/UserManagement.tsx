@@ -760,7 +760,7 @@ const UserManagement = () => {
                     <p className="text-[11px] text-muted-foreground">
                       {msgs.length} recipient{msgs.length > 1 ? "s" : ""}
                       {missing > 0 ? ` · ${missing} missing number` : ""}
-                      {" · "}Template: {isWA ? "ai_subscription_expiry" : "MSG91 DLT"}
+                      {" · "}Template: {isWA ? "trial_end (Meta approved)" : "MSG91 DLT"}
                     </p>
                   </div>
                   <button
