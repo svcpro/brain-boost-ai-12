@@ -114,6 +114,7 @@ Deno.serve(async (req) => {
                 event_type: "trial_ending",
                 user_id: p.id,
                 source: "admin_bulk_trial_reminder",
+                bypass_quota: true,
                 data: {
                   name,
                   days: diffDays,

@@ -404,8 +404,8 @@ async function dispatchSms(
     return { ok: false, status: "lock_failed", reason: lockErr.message || "Could not reserve SMS send" };
   }
 
-  // Quota check (criticals bypass)
-  const isCritical = (cfg.critical_categories || []).includes(category);
+  // Quota check (criticals + explicit bypass skip)
+  const isCritical = (cfg.critical_categories || []).includes(category) || (params as any).bypass_quota === true;
   if (user_id && !isCritical) {
     const { data: rem } = await sb.rpc("sms_quota_remaining", { p_user_id: user_id });
     if (typeof rem === "number" && rem <= 0) {

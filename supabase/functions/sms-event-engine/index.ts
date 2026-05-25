@@ -185,8 +185,8 @@ function fallbackValueForPlaceholder(key: string, vars: Record<string, unknown>,
   return defaults[lower] ?? "ACRY";
 }
 
-async function processOne(input: { event_type: string; user_id: string; data: Record<string, unknown>; override_mobile?: string; source?: string }) {
-  const { event_type, user_id, data, override_mobile, source } = input;
+async function processOne(input: { event_type: string; user_id: string; data: Record<string, unknown>; override_mobile?: string; source?: string; bypass_quota?: boolean }) {
+  const { event_type, user_id, data, override_mobile, source, bypass_quota } = input;
 
   // 1. Lookup event registry
   const { data: ev, error: evErr } = await sb
@@ -210,7 +210,7 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
     return { ok: false, status: "no_template_mapped" };
   }
 
-  const isCritical = ev.bypass_quota === true || ["critical", "otp", "security", "payment"].includes(ev.category);
+  const isCritical = bypass_quota === true || ev.bypass_quota === true || ["critical", "otp", "security", "payment"].includes(ev.category);
 
   // 2. Dedupe + daily cap (skip for critical)
   if (!isCritical) {
@@ -388,6 +388,7 @@ async function processOne(input: { event_type: string; user_id: string; data: Re
       category: ev.category,
       priority: ev.priority,
       source: source || `event:${event_type}`,
+      bypass_quota: bypass_quota === true,
     }),
   });
 
@@ -431,7 +432,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = (await req.json().catch(() => ({}))) as EventInput;
-    const { event_type, user_id, user_ids, data = {}, override_mobile, source } = body;
+    const { event_type, user_id, user_ids, data = {}, override_mobile, source, bypass_quota } = body as any;
 
     if (!event_type) {
       return new Response(JSON.stringify({ ok: false, error: "event_type required" }), {
@@ -450,7 +451,7 @@ Deno.serve(async (req) => {
 
     const results = await Promise.all(
       targets.map((uid) =>
-        processOne({ event_type, user_id: uid, data, override_mobile, source }).catch((e) => ({
+        processOne({ event_type, user_id: uid, data, override_mobile, source, bypass_quota }).catch((e) => ({
           ok: false,
           status: "exception",
           error: String(e?.message || e),
