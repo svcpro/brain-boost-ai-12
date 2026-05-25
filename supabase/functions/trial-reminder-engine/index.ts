@@ -1,17 +1,17 @@
 // trial-reminder-engine — runs once a day, sends contextual reminders to users
-// during their 7-day free trial and right after it ends.
+// during their free trial and right after it ends.
 //
 // Channels (best-effort, fire-and-forget):
 //   - Push (send-push-notification)
 //   - Email (send-transactional-email)
-//   - SMS  (sms-event-engine, event_type: trial_reminder / trial_expired)
+//   - SMS  (sms-event-engine, event_type: trial_ending / trial_expired)
 //
 // Cadence:
-//   - Day 5 (2 days left)         → "Your trial ends soon" reminder
-//   - Day 6 (1 day left)          → "Last day of trial" warning
-//   - Day 7 / expiry day          → "Trial ended — renew now"
-//   - +1 day after expiry         → "Don't lose your progress" follow-up
-//   - +3 days after expiry        → final win-back nudge
+//   - Every day when 1–5 days remain → daily "trial ending" SMS/Push/Email
+//   - Day 0 (expiry day)             → "Trial ended — renew now"
+//   - +1 day / +3 days after expiry  → win-back follow-ups
+//
+// Idempotent per day: once the user renews (is_trial=false), they drop out automatically.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
