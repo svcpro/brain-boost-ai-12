@@ -21,8 +21,6 @@ project_id = "yvxrsujwgmzdjzsjyqfb"
     verify_jwt = false
   [functions.autopilot-engine]
     verify_jwt = false
-  [functions.auto-trial-reminder]
-    verify_jwt = false
   [functions.behavioral-notify-cron]
     verify_jwt = false
   [functions.brainlens-solve]
