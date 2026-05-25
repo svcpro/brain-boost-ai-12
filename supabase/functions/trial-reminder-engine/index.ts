@@ -74,8 +74,10 @@ async function sendTrialEndWhatsApp(opts: { phone: string; customerName: string;
     );
     const text = await resp.text();
     let raw: any;
-    try { raw = JSON.parse(text); } catch { raw = { message: text.slice(0, 300) }; }
-    return { ok: resp.ok && raw?.type !== "error", raw };
+    try { raw = JSON.parse(text); } catch { raw = { message: text.slice(0, 500) }; }
+    const ok = resp.ok && raw?.type !== "error" && raw?.status !== "error";
+    console.log(`[wa] to=${mobile} http=${resp.status} ok=${ok} resp=${JSON.stringify(raw).slice(0, 400)}`);
+    return { ok, raw, http: resp.status };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
