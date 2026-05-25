@@ -6,7 +6,7 @@ import {
   BookOpen, Brain, TrendingUp, Calendar, Shield, Ban,
   CheckCircle2, XCircle, Eye, EyeOff, Crown, Star, BarChart3, Download,
   CheckSquare, Square, MinusSquare, ArrowUpDown, ArrowUp, ArrowDown,
-  Target, Award, Bell, Send, Sparkles, Key, Copy, RefreshCw
+  Target, Award, Bell, Send, Sparkles, Key, Copy, RefreshCw, MessageCircle
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
