@@ -25,6 +25,7 @@ function normalizeIndianMobile(raw: unknown): string | null {
   const cleaned = digits.startsWith("00") ? digits.slice(2) : digits;
   if (/^[6-9]\d{9}$/.test(cleaned)) return `91${cleaned}`;
   if (/^0[6-9]\d{9}$/.test(cleaned)) return `91${cleaned.slice(1)}`;
+  if (/^091[6-9]\d{9}$/.test(cleaned)) return cleaned.slice(1);
   if (/^91[6-9]\d{9}$/.test(cleaned)) return cleaned;
   return null;
 }
