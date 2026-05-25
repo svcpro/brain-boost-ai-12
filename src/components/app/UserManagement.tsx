@@ -427,28 +427,18 @@ const UserManagement = () => {
             <span className="text-xs font-medium text-foreground">{selectedIds.size} user(s) selected</span>
             <div className="flex items-center gap-2">
               <button
-                onClick={async () => {
-                  if (selectedIds.size === 0) return;
-                  setBulkProcessing(true);
-                  const ids = Array.from(selectedIds);
-                  const { data, error } = await supabase.functions.invoke("bulk-trial-reminder", {
-                    body: { user_ids: ids },
-                  });
-                  if (error) {
-                    toast({ title: "Failed to send reminders", description: error.message, variant: "destructive" });
-                  } else {
-                    toast({
-                      title: "Trial reminders dispatched",
-                      description: `WhatsApp: ${data?.whatsapp?.sent ?? 0} sent · SMS: ${data?.sms?.sent ?? 0} sent`,
-                    });
-                    setSelectedIds(new Set());
-                  }
-                  setBulkProcessing(false);
-                }}
+                onClick={() => bulkSendReminder("whatsapp")}
+                disabled={bulkProcessing}
+                className="px-3 py-1.5 bg-success/15 text-success rounded-lg text-xs font-medium hover:bg-success/25 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <MessageCircle className="w-3 h-3" /> Trial Reminder · WhatsApp
+              </button>
+              <button
+                onClick={() => bulkSendReminder("sms")}
                 disabled={bulkProcessing}
                 className="px-3 py-1.5 bg-primary/15 text-primary rounded-lg text-xs font-medium hover:bg-primary/25 transition-colors flex items-center gap-1.5 disabled:opacity-50"
               >
-                <Send className="w-3 h-3" /> Trial End Reminder (WA + SMS)
+                <Bell className="w-3 h-3" /> Trial Reminder · SMS
               </button>
               <button
                 onClick={() => setBulkConfirm({ action: "ban" })}
