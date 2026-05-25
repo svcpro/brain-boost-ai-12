@@ -22,18 +22,17 @@ const corsHeaders = {
 };
 
 const MSG91_AUTH_KEY = Deno.env.get("MSG91_AUTH_KEY") || "";
-const WA_INTEGRATED_NUMBER = "15558451483";
-const WA_NAMESPACE = "27d18aad_0bc9_491c_ab4e_90e36bbe4c99";
+const WA_INTEGRATED_NUMBER = Deno.env.get("MSG91_WA_INTEGRATED_NUMBER") || "918796032562";
+const WA_NAMESPACE = Deno.env.get("MSG91_WA_NAMESPACE") || "5a93dcbd_6802_42d5_af95_17d4fd2d7441";
 
 function normalizeIndianMobile(raw: unknown): string | null {
   if (raw == null) return null;
   const digits = String(raw).replace(/\D/g, "");
   if (!digits) return null;
   const cleaned = digits.startsWith("00") ? digits.slice(2) : digits;
-  if (/^\d{10}$/.test(cleaned)) return `91${cleaned}`;
-  if (/^0\d{10}$/.test(cleaned)) return `91${cleaned.slice(1)}`;
-  if (/^91\d{10}$/.test(cleaned)) return cleaned;
-  if (/^\d{11,15}$/.test(cleaned)) return cleaned;
+  if (/^[6-9]\d{9}$/.test(cleaned)) return `91${cleaned}`;
+  if (/^0[6-9]\d{9}$/.test(cleaned)) return `91${cleaned.slice(1)}`;
+  if (/^91[6-9]\d{9}$/.test(cleaned)) return cleaned;
   return null;
 }
 
@@ -227,7 +226,7 @@ Deno.serve(async (req) => {
             .then((r) =>
               sb.from("whatsapp_messages").insert({
                 user_id: profile.id,
-                to_number: String(waPhone),
+                to_number: normalizeIndianMobile(waPhone) || String(waPhone),
                 message_type: "template",
                 template_name: "trial_end",
                 template_params: { customer_name: name, days: Math.max(0, diffDays) },
