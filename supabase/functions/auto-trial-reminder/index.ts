@@ -45,16 +45,16 @@ Deno.serve(async (req) => {
       return json({ ok: true, total: 0, sent: 0, skipped: 0, failed: 0 });
     }
 
-    // Dedupe: skip users already notified today
+    // Dedupe: skip users already notified today (any auto trial reminder SMS today)
     const startOfDay = new Date();
     startOfDay.setUTCHours(0, 0, 0, 0);
     const { data: alreadyToday } = await sb
-      .from("admin_audit_logs")
-      .select("target_id")
-      .eq("action", "auto_trial_reminder_sent")
+      .from("sms_messages")
+      .select("user_id")
+      .eq("source", "auto_trial_reminder")
       .gte("created_at", startOfDay.toISOString())
-      .in("target_id", candidateIds);
-    const sentToday = new Set((alreadyToday || []).map((r: any) => r.target_id));
+      .in("user_id", candidateIds);
+    const sentToday = new Set((alreadyToday || []).map((r: any) => r.user_id));
 
     const toNotify = candidateIds.filter((id) => !sentToday.has(id));
     const { data: profiles } = await sb
