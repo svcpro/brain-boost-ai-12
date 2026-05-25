@@ -157,6 +157,37 @@ const UserManagement = () => {
     setPreviewState(null);
   };
 
+  // Live template bodies fetched from DB so preview = sent message
+  const [templateBodies, setTemplateBodies] = useState<{
+    sms_trial?: string; sms_trial_url?: string;
+    sms_expiring?: string; sms_expiring_url?: string;
+    wa?: string;
+  }>({});
+  useEffect(() => {
+    (async () => {
+      const [{ data: sms }, { data: wa }] = await Promise.all([
+        supabase.from("sms_templates")
+          .select("name, body_template, target_url")
+          .in("name", ["you_trial_ending", "you_subscription_expiring"]),
+        supabase.from("whatsapp_templates")
+          .select("name, body_template")
+          .eq("name", "ai_subscription_expiry").maybeSingle(),
+      ]);
+      const t = (n: string) => (sms || []).find((x: any) => x.name === n);
+      setTemplateBodies({
+        sms_trial: t("you_trial_ending")?.body_template,
+        sms_trial_url: t("you_trial_ending")?.target_url,
+        sms_expiring: t("you_subscription_expiring")?.body_template,
+        sms_expiring_url: t("you_subscription_expiring")?.target_url,
+        wa: (wa as any)?.body_template,
+      });
+    })();
+  }, []);
+
+  const renderTpl = (tpl: string, vars: Record<string, string | number>) =>
+    tpl.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, k) =>
+      vars[k] !== undefined ? String(vars[k]) : `{{${k}}}`);
+
   // Build preview text matching server templates
   const buildPreviewMessages = (channel: "whatsapp" | "sms", ids: string[]) => {
     return ids.map((id) => {
@@ -168,24 +199,27 @@ const UserManagement = () => {
         : 0;
       const name = u?.display_name?.split(" ")?.[0] || "there";
       const phone = u?.whatsapp_number || u?.phone || "";
-      const renewUrl = "https://acry.ai/app?tab=you&section=subscription";
       const expiryDate = end ? new Date(end).toISOString().slice(0, 10) : "—";
       let body = "";
       if (channel === "sms") {
-        // Exact MSG91-approved DLT body
-        body =
-          diffDays <= 0
-            ? `ACRY: Your Premium plan expires in ${diffDays} days. Renew to keep your AI mentor active ${renewUrl} -ACRYAI`
-            : `ACRY: Your free trial ends in ${diffDays} days. Upgrade to Premium at Rs 149 per month ${renewUrl} -ACRYAI`;
+        const isExpiring = diffDays <= 0;
+        const tpl = isExpiring ? templateBodies.sms_expiring : templateBodies.sms_trial;
+        const link = (isExpiring ? templateBodies.sms_expiring_url : templateBodies.sms_trial_url)
+          || "https://acry.ai/app?tab=you";
+        body = tpl
+          ? renderTpl(tpl, { days: diffDays, link, name })
+          : "Loading approved MSG91 template…";
       } else {
-        // Exact MSG91-approved WhatsApp template: ai_subscription_expiry
-        body =
-          `🧠✨ *Sub Expiry*\n\n` +
-          `Hey ${name}! 👋\n\n` +
-          `📊 Your ACRY Premium plan is expiring in ${diffDays} days on ${expiryDate}.\n` +
-          `🎯 Don't miss out on uninterrupted AI-powered preparation!\n` +
-          `🔥 Renew now and save with 149 + your exclusive discount RENEW.\n\n` +
-          `👉 _Renew Your Subscription Now_`;
+        body = templateBodies.wa
+          ? renderTpl(templateBodies.wa, {
+              name,
+              plan_name: "ACRY Premium",
+              days_remaining: diffDays,
+              expiry_date: expiryDate,
+              renewal_price: "149",
+              discount_code: "RENEW",
+            })
+          : "Loading approved WhatsApp template…";
       }
       return {
         id,
