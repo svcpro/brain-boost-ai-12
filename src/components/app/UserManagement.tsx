@@ -567,7 +567,7 @@ const UserManagement = () => {
                 })()}
                 <MiniSparkline data={studyActivity[u.id] || []} />
                 <button
-                  onClick={(e) => { e.stopPropagation(); sendTrialReminder(u.id, "whatsapp"); }}
+                  onClick={(e) => { e.stopPropagation(); openReminderPreview("whatsapp", [u.id], "single"); }}
                   disabled={reminderSendingId === u.id}
                   title="Send Trial End Reminder via WhatsApp"
                   className="shrink-0 p-1.5 rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors disabled:opacity-50"
