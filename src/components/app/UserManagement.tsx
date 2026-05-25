@@ -209,16 +209,8 @@ const UserManagement = () => {
           ? renderTpl(tpl, { days: diffDays, day: diffDays, link, url: link, name })
           : "Loading approved MSG91 template…";
       } else {
-        body = templateBodies.wa
-          ? renderTpl(templateBodies.wa, {
-              name,
-              plan_name: "ACRY Premium",
-              days_remaining: diffDays,
-              expiry_date: expiryDate,
-              renewal_price: "149",
-              discount_code: "RENEW",
-            })
-          : "Loading approved WhatsApp template…";
+        // MSG91 Meta-approved `trial_end` template — named params: customer_name + days
+        body = `Hi ${name}, your free trial will expire in ${diffDays} days. Renew now to keep your ACRY Premium access: https://acry.ai`;
       }
       return {
         id,
