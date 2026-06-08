@@ -462,12 +462,14 @@ const UserManagement = () => {
           <h2 className="text-xl font-bold text-foreground">User Management</h2>
           <p className="text-xs text-muted-foreground mt-1">{totalUsers} total users</p>
         </div>
-        <button
-          onClick={exportCSV}
-          className="px-4 py-2 bg-secondary text-foreground rounded-lg text-xs font-medium hover:bg-secondary/80 transition-colors flex items-center gap-1.5"
-        >
-          <Download className="w-3.5 h-3.5" /> Export CSV
-        </button>
+        {isSuperAdmin && (
+          <button
+            onClick={exportCSV}
+            className="px-4 py-2 bg-secondary text-foreground rounded-lg text-xs font-medium hover:bg-secondary/80 transition-colors flex items-center gap-1.5"
+          >
+            <Download className="w-3.5 h-3.5" /> Export CSV
+          </button>
+        )}
       </div>
 
       {/* Summary cards */}
