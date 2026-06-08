@@ -101,6 +101,7 @@ const MiniSparkline = ({ data }: { data: number[] }) => {
 
 const UserManagement = () => {
   const { user: adminUser } = useAuth();
+  const { isSuperAdmin } = useAdminRole();
   const { toast } = useToast();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [totalCount, setTotalCount] = useState(0);
