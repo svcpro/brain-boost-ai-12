@@ -118,6 +118,7 @@ Return ONLY a JSON object with "title" (max 60 chars, punchy) and "body" (max 20
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    if (e instanceof Response) return e;
     console.error("generate-notification error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
