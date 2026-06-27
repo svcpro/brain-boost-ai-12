@@ -125,9 +125,43 @@ Deno.serve(async (req) => {
       return new Response("Invalid tracking request", { status: 400 });
     }
 
-    // POST: Resend webhook events
+    // POST: Resend webhook events — verify HMAC signature
     if (req.method === "POST") {
-      const payload = await req.json();
+      const rawBody = await req.text();
+      const secret = Deno.env.get("EMAIL_WEBHOOK_SECRET");
+      if (!secret) {
+        console.error("EMAIL_WEBHOOK_SECRET not configured — rejecting webhook");
+        return new Response(JSON.stringify({ error: "Webhook secret not configured" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const provided = req.headers.get("x-acry-signature") ||
+                       req.headers.get("svix-signature") ||
+                       req.headers.get("x-webhook-signature") || "";
+
+      // Compute HMAC-SHA256(rawBody) using shared secret
+      const enc = new TextEncoder();
+      const key = await crypto.subtle.importKey(
+        "raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+      );
+      const sigBuf = await crypto.subtle.sign("HMAC", key, enc.encode(rawBody));
+      const expected = Array.from(new Uint8Array(sigBuf))
+        .map(b => b.toString(16).padStart(2, "0")).join("");
+
+      // Constant-time compare (allow either raw hex or "sha256=hex" or svix-style "v1,<base64>")
+      const candidates = provided.split(/[, ]/).map(s => s.replace(/^sha256=/, "").replace(/^v1,?/, "").trim());
+      const ok = candidates.some(c => c.length === expected.length && timingSafeEqualHex(c, expected));
+      if (!ok) {
+        console.warn("email-webhook: invalid signature");
+        return new Response(JSON.stringify({ error: "Invalid signature" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const payload = JSON.parse(rawBody);
       const events = Array.isArray(payload) ? payload : [payload];
 
       let processed = 0;
