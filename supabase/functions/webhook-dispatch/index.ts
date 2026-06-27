@@ -123,6 +123,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, ...securityHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
+    if (err instanceof Response) return err;
     return new Response(JSON.stringify({ error: String(err) }), {
       status: 500,
       headers: { ...corsHeaders, ...securityHeaders, "Content-Type": "application/json" },
