@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { authenticateRequest, requireAdmin, handleCors } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,10 +7,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const ADMIN_ACTIONS = new Set(["run_daily_growth", "get_growth_dashboard", "get_growth_analytics"]);
+
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const cors = handleCors(req);
+  if (cors) return cors;
 
   try {
+    const { userId: callerId } = await authenticateRequest(req);
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -17,19 +23,28 @@ Deno.serve(async (req) => {
 
     const { action, user_id, data } = await req.json();
 
+    // Authorization
+    if (ADMIN_ACTIONS.has(action)) {
+      await requireAdmin(callerId);
+    } else if (user_id && user_id !== callerId) {
+      // Cross-user actions require admin
+      await requireAdmin(callerId);
+    }
+    const targetUserId = user_id || callerId;
+
     switch (action) {
       case "compute_segment":
-        return json(await computeSegment(supabase, user_id));
+        return json(await computeSegment(supabase, targetUserId));
       case "process_journey":
-        return json(await processJourney(supabase, user_id));
+        return json(await processJourney(supabase, targetUserId));
       case "check_fatigue":
-        return json(await checkFatigue(supabase, user_id));
+        return json(await checkFatigue(supabase, targetUserId));
       case "check_subscription_trigger":
-        return json(await checkSubscriptionTrigger(supabase, user_id));
+        return json(await checkSubscriptionTrigger(supabase, targetUserId));
       case "check_referral_trigger":
-        return json(await checkReferralTrigger(supabase, user_id, data));
+        return json(await checkReferralTrigger(supabase, targetUserId, data));
       case "check_exam_mode":
-        return json(await checkExamMode(supabase, user_id));
+        return json(await checkExamMode(supabase, targetUserId));
       case "get_growth_dashboard":
         return json(await getGrowthDashboard(supabase));
       case "get_growth_analytics":
@@ -40,10 +55,12 @@ Deno.serve(async (req) => {
         return json({ error: "Unknown action" }, 400);
     }
   } catch (e) {
+    if (e instanceof Response) return e;
     console.error("growth-engine error:", e);
     return json({ error: e instanceof Error ? e.message : "Unknown error" }, 500);
   }
 });
+
 
 // ═══════════════════════════════════════════════════════════════
 // 1. USER SEGMENTATION ENGINE
