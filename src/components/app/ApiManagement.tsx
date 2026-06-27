@@ -525,7 +525,7 @@ const ApiKeysTab = () => {
   const createKey = async () => {
     if (!form.name || !user) return toast({ title: "Name is required", variant: "destructive" });
     const rawKey = generateApiKey();
-    const keyHash = hashKey(rawKey);
+    const keyHash = await hashKey(rawKey);
     const keyPrefix = rawKey.substring(0, 10) + "...";
 
     const { error } = await supabase.from("api_keys").insert({
