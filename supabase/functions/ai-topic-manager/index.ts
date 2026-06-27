@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { authenticateRequest, handleCors, jsonResponse, errorResponse, securityHeaders } from "../_shared/auth.ts";
+import { authenticateRequest, handleCors, jsonResponse, errorResponse, securityHeaders, requireAdmin } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,7 +22,11 @@ Deno.serve(async (req) => {
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     // Determine the user to operate on (admin can target other users)
-    const targetUserId = target_user_id || user.id;
+    let targetUserId = user.id;
+    if (target_user_id && target_user_id !== user.id) {
+      await requireAdmin(user.id); // throws 403 if not admin
+      targetUserId = target_user_id;
+    }
 
     if (action === "generate_curriculum") {
       // AI generates full subject + topic tree based on exam type
@@ -375,6 +379,7 @@ Deno.serve(async (req) => {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    if (e instanceof Response) return e;
     console.error("ai-topic-manager error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
