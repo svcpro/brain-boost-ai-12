@@ -564,7 +564,7 @@ const ApiKeysTab = () => {
 
   const regenerateKey = async (id: string) => {
     const rawKey = generateApiKey();
-    const keyHash = hashKey(rawKey);
+    const keyHash = await hashKey(rawKey);
     const keyPrefix = rawKey.substring(0, 10) + "...";
     await supabase.from("api_keys").update({ key_hash: keyHash, key_prefix: keyPrefix } as any).eq("id", id);
     setGeneratedKey(rawKey);
