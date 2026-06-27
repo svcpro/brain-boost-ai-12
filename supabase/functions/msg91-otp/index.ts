@@ -235,7 +235,15 @@ async function msg91ResendOTP(authKey: string, mobile: string, retryType: string
 // ─── WhatsApp OTP Helpers ────────────────────────────────
 
 function generateOTP4(): string {
-  return String(Math.floor(1000 + Math.random() * 9000));
+  // CSPRNG-based 4-digit OTP. Reject biased values to keep the distribution uniform across 1000-9999.
+  const buf = new Uint32Array(1);
+  while (true) {
+    crypto.getRandomValues(buf);
+    // 9000 * 477218 = 4,294,962,000 (< 2^32). Discard values above to remove modulo bias.
+    if (buf[0] < 4294962000) {
+      return String(1000 + (buf[0] % 9000));
+    }
+  }
 }
 
 async function storeWhatsAppOTP(adminClient: ReturnType<typeof getAdminClient>, mobile: string, otp: string, channel: string = "whatsapp") {
