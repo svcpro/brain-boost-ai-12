@@ -131,21 +131,22 @@ const AVAILABLE_PERMISSIONS = [
 ];
 
 // ─── Helpers ───
+// API keys MUST be generated with crypto.getRandomValues (CSPRNG), not Math.random.
 function generateApiKey(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const buf = new Uint32Array(40);
+  crypto.getRandomValues(buf);
   let key = "acry_";
-  for (let i = 0; i < 40; i++) key += chars.charAt(Math.floor(Math.random() * chars.length));
+  for (let i = 0; i < 40; i++) key += chars.charAt(buf[i] % chars.length);
   return key;
 }
 
-function hashKey(key: string): string {
-  let hash = 0;
-  for (let i = 0; i < key.length; i++) {
-    const char = key.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash |= 0;
-  }
-  return "hash_" + Math.abs(hash).toString(36) + "_" + Date.now().toString(36);
+// Use SHA-256 for storage. We only ever store the hash; the raw key is shown once at creation.
+async function hashKey(key: string): Promise<string> {
+  const enc = new TextEncoder();
+  const digest = await crypto.subtle.digest("SHA-256", enc.encode(key));
+  const hex = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("");
+  return "sha256_" + hex;
 }
 
 // ─── Main Component ───
