@@ -48,8 +48,8 @@ Deno.serve(async (req) => {
       .select("role")
       .eq("user_id", callerId);
 
-    if (!roles || roles.length === 0) {
-      return json({ error: "Forbidden: admin role required" }, 403);
+    if (!roles || !roles.some((r: { role: string }) => r.role === "super_admin")) {
+      return json({ error: "Forbidden: super_admin role required" }, 403);
     }
 
     // Parse target
