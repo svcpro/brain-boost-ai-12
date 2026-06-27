@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders, securityHeaders } from "../_shared/auth.ts";
+import { corsHeaders, securityHeaders, authenticateRequest, requireAdmin } from "../_shared/auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -10,6 +10,10 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Require an admin caller — webhook dispatch must never be open to the public
+    const { userId: callerId } = await authenticateRequest(req);
+    await requireAdmin(callerId);
+
     const { event_type, payload, institution_id, user_id } = await req.json();
     if (!event_type || !payload) {
       return new Response(JSON.stringify({ error: "event_type and payload required" }), {
