@@ -22,7 +22,11 @@ Deno.serve(async (req) => {
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     // Determine the user to operate on (admin can target other users)
-    const targetUserId = target_user_id || user.id;
+    let targetUserId = user.id;
+    if (target_user_id && target_user_id !== user.id) {
+      await requireAdmin(user.id); // throws 403 if not admin
+      targetUserId = target_user_id;
+    }
 
     if (action === "generate_curriculum") {
       // AI generates full subject + topic tree based on exam type
