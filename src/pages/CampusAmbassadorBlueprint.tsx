@@ -2420,7 +2420,7 @@ const Form = ({ formRef }: { formRef: React.RefObject<HTMLDivElement> }) => {
               We'll personally reach out within <span className="text-white font-semibold">48 hours</span> via WhatsApp & email.
             </p>
             <a
-              href="https://wa.me/919999999999?text=Hi%20ACRY%20AI%2C%20I%20just%20applied%20for%20the%20Campus%20Ambassador%20Program."
+              href="https://wa.me/919821830895?text=Hi%20ACRY%20AI%2C%20I%20just%20applied%20for%20the%20Campus%20Ambassador%20Program."
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-green-500 hover:bg-green-600 text-white font-semibold transition-colors"
@@ -2590,7 +2590,7 @@ const Form = ({ formRef }: { formRef: React.RefObject<HTMLDivElement> }) => {
                   Prefer chatting? Send your details over WhatsApp — same review queue.
                 </div>
                 <a
-                  href={`https://wa.me/919999999999?text=${encodeURIComponent(
+                  href={`https://wa.me/919821830895?text=${encodeURIComponent(
                     `Hi ACRY AI, I want to apply for the Campus Ambassador Program.\n\nName: ${data.full_name || "-"}\nPhone: ${data.phone || "-"}\nEmail: ${data.email || "-"}\nCollege: ${data.college || "-"}\nCity: ${data.city || "-"}\nCourse: ${data.course || "-"}\nInstagram: ${data.instagram || "-"}\nLinkedIn: ${data.linkedin || "-"}\n\nWhy join: ${data.why_join || "-"}\nLeadership: ${data.leadership_experience || "-"}`,
                   )}`}
                   target="_blank"
@@ -2789,7 +2789,7 @@ const FAQ = () => {
           <span className="text-sm text-white/60" style={fontBody}>
             Still have questions?{" "}
             <a
-              href="https://wa.me/919999999999?text=Hi%20ACRY%20AI%2C%20I%20have%20a%20question%20about%20the%20Campus%20Ambassador%20Program."
+              href="https://wa.me/919821830895?text=Hi%20ACRY%20AI%2C%20I%20have%20a%20question%20about%20the%20Campus%20Ambassador%20Program."
               target="_blank"
               rel="noopener noreferrer"
               className="text-white font-semibold hover:underline"
@@ -3009,7 +3009,7 @@ const PageFooter = () => (
         <div className="text-xs uppercase tracking-[0.2em] font-bold mb-4" style={{ color: INDIGO.glow, ...fontBody }}>Connect</div>
         <ul className="space-y-2 text-sm text-white/60" style={fontBody}>
           <li><a href="mailto:ambassador@acry.ai" className="hover:text-white transition-colors">ambassador@acry.ai</a></li>
-          <li><a href="https://wa.me/919999999999" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">WhatsApp Us</a></li>
+          <li><a href="https://wa.me/919821830895" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">WhatsApp Us</a></li>
         </ul>
         <div className="flex gap-2 mt-4">
           {[Instagram, Linkedin, MessageCircle].map((Icon, i) => (
@@ -3053,7 +3053,7 @@ const FloatingCTAs = ({ scrollToForm }: { scrollToForm: () => void }) => {
           )}
         </AnimatePresence>
         <a
-          href="https://wa.me/919999999999?text=Hi%20ACRY%20AI%2C%20I%20want%20to%20know%20more%20about%20the%20Campus%20Ambassador%20Program."
+          href="https://wa.me/919821830895?text=Hi%20ACRY%20AI%2C%20I%20want%20to%20know%20more%20about%20the%20Campus%20Ambassador%20Program."
           target="_blank"
           rel="noopener noreferrer"
           onClick={() => setShowWaTip(false)}
