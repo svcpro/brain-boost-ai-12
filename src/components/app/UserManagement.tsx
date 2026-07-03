@@ -425,38 +425,88 @@ const UserManagement = () => {
   // Summary stats from server-side counts
   const { totalUsers, paidUsers, totalRevenue, newThisWeek } = summaryStats;
 
-  const exportCSV = () => {
-    const headers = ["ID", "Display Name", "Email", "Phone", "Exam Type", "Exam Date", "Daily Goal (min)", "Weekly Goal (min)", "Plan", "Plan Status", "Amount", "Banned", "Ban Reason", "Joined", "Last Updated"];
-    const rows = users.map(u => {
-      const { planName, sub } = getUserPlan(u.id);
-      return [
-        u.id,
-        u.display_name || "",
-        u.email || "",
-        u.phone || u.whatsapp_number || "",
-        u.exam_type || "",
-        u.exam_date || "",
-        u.daily_study_goal_minutes,
-        u.weekly_focus_goal_minutes,
-        planName,
-        sub?.status || "free",
-        sub?.amount || 0,
-        u.is_banned ? "Yes" : "No",
-        u.ban_reason || "",
-        u.created_at,
-        u.updated_at,
-      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(",");
-    });
-    const csv = [headers.join(","), ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `users-export-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast({ title: `Exported ${users.length} users (current page)` });
+  const exportCSV = async () => {
+    setExporting(true);
+    try {
+      // Fetch ALL rows matching the current filters (paginated 1000/batch)
+      const BATCH = 1000;
+      let offset = 0;
+      const all: UserProfile[] = [];
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        let q = supabase
+          .from("profiles")
+          .select("id, display_name, email, phone, whatsapp_number, exam_type, exam_date, daily_study_goal_minutes, weekly_focus_goal_minutes, created_at, updated_at, avatar_url, opt_in_leaderboard, email_notifications_enabled, is_banned, banned_at, ban_reason");
+        if (debouncedSearch) {
+          q = q.or(`display_name.ilike.%${debouncedSearch}%,email.ilike.%${debouncedSearch}%,phone.ilike.%${debouncedSearch}%,id.eq.${debouncedSearch.match(/^[0-9a-f-]{36}$/i) ? debouncedSearch : "00000000-0000-0000-0000-000000000000"}`);
+        }
+        if (filter === "banned") q = q.eq("is_banned", true);
+        if (examFilter !== "all") q = q.eq("exam_type", examFilter);
+        q = q.order("created_at", { ascending: false }).range(offset, offset + BATCH - 1);
+        const { data, error } = await q;
+        if (error) throw error;
+        const batch = (data as UserProfile[]) || [];
+        all.push(...batch);
+        if (batch.length < BATCH) break;
+        offset += BATCH;
+      }
+
+      // Pull subscriptions for full set
+      const ids = all.map(u => u.id);
+      const subMap = new Map<string, UserSubscription>();
+      if (ids.length) {
+        for (let i = 0; i < ids.length; i += 500) {
+          const chunk = ids.slice(i, i + 500);
+          const { data: subs } = await supabase
+            .from("user_subscriptions")
+            .select("id, user_id, plan_id, status, amount, currency, expires_at, created_at")
+            .in("user_id", chunk)
+            .eq("status", "active");
+          for (const s of (subs as UserSubscription[] | null) || []) {
+            if (!subMap.has(s.user_id)) subMap.set(s.user_id, s);
+          }
+        }
+      }
+
+      const headers = ["ID", "Display Name", "Email", "Phone", "Exam Type", "Exam Date", "Daily Goal (min)", "Weekly Goal (min)", "Plan", "Plan Status", "Amount", "Banned", "Ban Reason", "Joined", "Last Updated"];
+      const rows = all.map(u => {
+        const sub = subMap.get(u.id) || null;
+        const plan = sub ? plans.find(p => p.id === sub.plan_id) : null;
+        return [
+          u.id,
+          u.display_name || "",
+          u.email || "",
+          u.phone || u.whatsapp_number || "",
+          u.exam_type || "",
+          u.exam_date || "",
+          u.daily_study_goal_minutes,
+          u.weekly_focus_goal_minutes,
+          plan?.name || "Free",
+          sub?.status || "free",
+          sub?.amount || 0,
+          u.is_banned ? "Yes" : "No",
+          u.ban_reason || "",
+          u.created_at,
+          u.updated_at,
+        ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(",");
+      });
+      const csv = [headers.join(","), ...rows].join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const suffix = examFilter !== "all" ? `-${examFilter.replace(/\s+/g, "_")}` : "";
+      a.download = `users-export${suffix}-${format(new Date(), "yyyy-MM-dd")}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: `Exported ${all.length} user(s)`, description: examFilter !== "all" ? `Filter: ${examFilter}` : "All users" });
+    } catch (e: any) {
+      toast({ title: "Export failed", description: e.message, variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
   };
+
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
 
