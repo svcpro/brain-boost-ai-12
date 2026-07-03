@@ -524,9 +524,11 @@ const UserManagement = () => {
         {isSuperAdmin && (
           <button
             onClick={exportCSV}
-            className="px-4 py-2 bg-secondary text-foreground rounded-lg text-xs font-medium hover:bg-secondary/80 transition-colors flex items-center gap-1.5"
+            disabled={exporting}
+            className="px-4 py-2 bg-secondary text-foreground rounded-lg text-xs font-medium hover:bg-secondary/80 transition-colors flex items-center gap-1.5 disabled:opacity-60"
           >
-            <Download className="w-3.5 h-3.5" /> Export CSV
+            {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+            {exporting ? "Exporting..." : `Export CSV${examFilter !== "all" ? ` · ${examFilter}` : ""}`}
           </button>
         )}
       </div>
