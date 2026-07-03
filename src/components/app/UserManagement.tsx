@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { format, formatDistanceToNow } from "date-fns";
 import { useAdminRole } from "@/hooks/useAdminRole";
+import { EXAM_TYPES } from "@/lib/examTypes";
 
 interface UserProfile {
   id: string;
