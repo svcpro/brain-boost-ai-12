@@ -565,6 +565,19 @@ const UserManagement = () => {
           ))}
           <div className="relative">
             <select
+              value={examFilter}
+              onChange={e => setExamFilter(e.target.value)}
+              className="appearance-none pl-3 pr-7 py-2 bg-secondary rounded-lg text-xs font-medium text-foreground border border-border focus:border-primary outline-none cursor-pointer max-w-[160px]"
+              title="Filter by exam"
+            >
+              <option value="all">All exams</option>
+              {EXAM_TYPES.map(ex => (
+                <option key={ex} value={ex}>{ex}</option>
+              ))}
+            </select>
+          </div>
+          <div className="relative">
+            <select
               value={sortBy}
               onChange={e => setSortBy(e.target.value as any)}
               className="appearance-none pl-7 pr-3 py-2 bg-secondary rounded-lg text-xs font-medium text-foreground border border-border focus:border-primary outline-none cursor-pointer"
