@@ -356,7 +356,7 @@ const UserManagement = () => {
     }
 
     setLoading(false);
-  }, [page, debouncedSearch, filter, sortBy]);
+  }, [page, debouncedSearch, filter, sortBy, examFilter]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -371,7 +371,7 @@ const UserManagement = () => {
   const paginatedUsers = users;
 
   // Reset page & selection when filters change
-  useEffect(() => { setPage(1); setSelectedIds(new Set()); }, [search, filter, sortBy]);
+  useEffect(() => { setPage(1); setSelectedIds(new Set()); }, [search, filter, sortBy, examFilter]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
