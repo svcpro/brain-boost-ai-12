@@ -294,6 +294,12 @@ const UserManagement = () => {
       query = query.eq("is_banned", true);
     }
 
+    // Server-side exam-type filter
+    if (examFilter !== "all") {
+      query = query.eq("exam_type", examFilter);
+    }
+
+
     // Server-side sorting
     switch (sortBy) {
       case "newest": query = query.order("created_at", { ascending: false }); break;
