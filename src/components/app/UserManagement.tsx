@@ -389,6 +389,37 @@ const UserManagement = () => {
     }
   };
 
+  const selectAllMatching = async () => {
+    try {
+      setBulkProcessing(true);
+      const BATCH = 1000;
+      let offset = 0;
+      const all: string[] = [];
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        let q = supabase.from("profiles").select("id");
+        if (debouncedSearch) {
+          q = q.or(`display_name.ilike.%${debouncedSearch}%,email.ilike.%${debouncedSearch}%,phone.ilike.%${debouncedSearch}%,id.eq.${debouncedSearch.match(/^[0-9a-f-]{36}$/i) ? debouncedSearch : "00000000-0000-0000-0000-000000000000"}`);
+        }
+        if (filter === "banned") q = q.eq("is_banned", true);
+        if (examFilter !== "all") q = q.eq("exam_type", examFilter);
+        q = q.range(offset, offset + BATCH - 1);
+        const { data, error } = await q;
+        if (error) throw error;
+        const batch = (data || []) as { id: string }[];
+        all.push(...batch.map(r => r.id));
+        if (batch.length < BATCH) break;
+        offset += BATCH;
+      }
+      setSelectedIds(new Set(all));
+      toast({ title: `Selected ${all.length.toLocaleString()} user(s)` });
+    } catch (e: any) {
+      toast({ title: "Select all failed", description: e.message, variant: "destructive" });
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
   const bulkLogAudit = async (action: string, targetIds: string[], details: Record<string, any>) => {
     if (!adminUser) return;
     const entries = targetIds.map(tid => ({
