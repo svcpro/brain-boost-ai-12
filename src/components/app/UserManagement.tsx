@@ -113,6 +113,8 @@ const UserManagement = () => {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [filter, setFilter] = useState<"all" | "banned">("all");
+  const [examFilter, setExamFilter] = useState<string>("all");
+  const [exporting, setExporting] = useState(false);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 20;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
