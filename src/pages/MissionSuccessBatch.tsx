@@ -168,22 +168,9 @@ const MissionSuccessBatch = () => {
   const [form, setForm] = useState({ name: "", mobile: "", email: "" });
   const [loading, setLoading] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const [showExitPopup, setShowExitPopup] = useState(false);
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [thankYou, setThankYou] = useState(false);
-  const [leadForm, setLeadForm] = useState({ name: "", mobile: "", email: "" });
 
-  useEffect(() => {
-    if (sessionStorage.getItem("msb_exit_shown")) return;
-    const handler = (e: MouseEvent) => {
-      if (e.clientY < 5) {
-        sessionStorage.setItem("msb_exit_shown", "1");
-        setShowExitPopup(true);
-      }
-    };
-    document.addEventListener("mouseout", handler);
-    return () => document.removeEventListener("mouseout", handler);
-  }, []);
 
   const openCheckout = async () => {
     if (!form.name.trim() || !/^[6-9]\d{9}$/.test(form.mobile.replace(/\D/g, "").slice(-10))) {
@@ -228,18 +215,6 @@ const MissionSuccessBatch = () => {
     } finally { setLoading(false); }
   };
 
-  const submitLead = async (source: string) => {
-    if (!leadForm.name.trim() || !/^[6-9]\d{9}$/.test(leadForm.mobile.replace(/\D/g, "").slice(-10))) {
-      toast({ title: "Enter valid name and mobile", variant: "destructive" }); return;
-    }
-    try {
-      await supabase.functions.invoke("mission-batch-checkout", {
-        body: { action: "capture_lead", ...leadForm, source },
-      });
-      toast({ title: "Your free SSC Study Kit is on the way 🎉" });
-    } catch { toast({ title: "Saved locally. We'll reach out soon." }); }
-    setShowExitPopup(false);
-  };
 
   const bodyFont = { fontFamily: "'Inter',sans-serif" };
   const headFont = { fontFamily: "'Space Grotesk',sans-serif" };
@@ -767,41 +742,6 @@ const MissionSuccessBatch = () => {
         </div>
       )}
 
-      {/* EXIT INTENT */}
-      {showExitPopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white border border-[#FFB800]/40 shadow-2xl overflow-hidden">
-            <div className="relative p-4 border-b border-neutral-900/8 flex items-center justify-between">
-              <div>
-                <div className="text-[9px] font-mono uppercase tracking-[0.22em] text-[#FF5A1F]">Wait</div>
-                <div className="text-lg font-bold text-neutral-900 mt-0.5" style={headFont}>Grab your free SSC study kit</div>
-              </div>
-              <button onClick={() => setShowExitPopup(false)} className="p-1.5 rounded-full hover:bg-neutral-900/5 text-neutral-500">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="p-4 space-y-2.5">
-              {[
-                { k: "name", ph: "Name", type: "text" },
-                { k: "mobile", ph: "Mobile", type: "tel" },
-                { k: "email", ph: "Email (optional)", type: "email" },
-              ].map((f) => (
-                <input
-                  key={f.k}
-                  type={f.type}
-                  placeholder={f.ph}
-                  value={(leadForm as any)[f.k]}
-                  onChange={(e) => setLeadForm({ ...leadForm, [f.k]: f.k === "mobile" ? e.target.value.replace(/\D/g,"").slice(0,10) : e.target.value })}
-                  className="w-full rounded-lg bg-neutral-50 border border-neutral-900/10 text-neutral-900 placeholder:text-neutral-400 px-3.5 py-2.5 text-[13px] focus:outline-none focus:border-[#FF5A1F] focus:ring-2 focus:ring-[#FF5A1F]/15"
-                />
-              ))}
-              <button onClick={() => submitLead("exit_popup")} className="w-full py-3 rounded-lg bg-neutral-900 hover:bg-[#FF5A1F] text-white font-bold text-sm transition" style={headFont}>
-                Download Free PDF
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
