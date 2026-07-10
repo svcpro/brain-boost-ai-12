@@ -669,7 +669,7 @@ const MissionSuccessBatch = () => {
 
       {/* ENROLL MODAL */}
       {showEnrollModal && !thankYou && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-neutral-900/50 backdrop-blur-sm p-4 animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/50 backdrop-blur-sm p-4 animate-in fade-in">
           <div className="w-full max-w-sm rounded-2xl bg-white border border-neutral-900/10 shadow-2xl overflow-hidden">
             <div className="relative p-4 border-b border-neutral-900/8 flex items-center justify-between">
               <div>
