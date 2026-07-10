@@ -549,7 +549,7 @@ const MissionSuccessBatch = () => {
 
       {/* STATS BAND */}
       <Section className="bg-neutral-900 border-y border-neutral-900 !py-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center md:text-left">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 text-center md:text-left">
           {[
             { n: enrolled, l: "Students Enrolled" },
             { n: hours, l: "Hours of Learning" },
