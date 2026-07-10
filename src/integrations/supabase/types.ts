@@ -6668,6 +6668,48 @@ export type Database = {
         }
         Relationships: []
       }
+      mission_batch_leads: {
+        Row: {
+          amount: number | null
+          created_at: string
+          email: string | null
+          id: string
+          mobile: string
+          name: string
+          paid_at: string | null
+          razorpay_order_id: string | null
+          razorpay_payment_id: string | null
+          source: string | null
+          status: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          mobile: string
+          name: string
+          paid_at?: string | null
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          source?: string | null
+          status?: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          mobile?: string
+          name?: string
+          paid_at?: string | null
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          source?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       mission_sessions: {
         Row: {
           accuracy_pct: number | null
