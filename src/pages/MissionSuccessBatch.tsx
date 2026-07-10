@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import SEO from "@/components/SEO";
 
-const PRICE = 999;
+const PRICE = 1999;
 const ORIGINAL = 4999;
 
 declare global {
@@ -315,7 +315,7 @@ const MissionSuccessBatch = () => {
                 <div className="flex items-baseline gap-2">
                   <span className="text-2xl font-bold text-neutral-900 tracking-tight leading-none" style={headFont}>₹{PRICE}</span>
                   <span className="text-neutral-400 line-through text-xs">₹{ORIGINAL}</span>
-                  <span className="px-1.5 py-0.5 rounded-md bg-[#FF5A1F]/10 text-[#FF5A1F] text-[9px] font-mono font-bold uppercase tracking-widest">80% off</span>
+                  <span className="px-1.5 py-0.5 rounded-md bg-[#FF5A1F]/10 text-[#FF5A1F] text-[9px] font-mono font-bold uppercase tracking-widest">60% off</span>
                 </div>
                 <span className="text-[10px] text-neutral-500 mt-0.5">One-time · 12 months access</span>
               </div>
