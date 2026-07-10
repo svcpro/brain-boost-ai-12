@@ -235,15 +235,15 @@ const MissionSuccessBatch = () => {
 
       {/* NAV */}
       <nav className="sticky top-0 z-40 bg-white/75 backdrop-blur-xl border-b border-neutral-900/8">
-        <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-2">
           <AcryLogo />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <span className="hidden md:inline-flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-widest text-neutral-500">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live · Enrolling
             </span>
             <button
               onClick={() => setShowEnrollModal(true)}
-              className="group inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-neutral-900 hover:bg-[#FF5A1F] text-white font-semibold text-xs shadow-sm transition-all"
+              className="group inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-lg bg-neutral-900 hover:bg-[#FF5A1F] text-white font-semibold text-[11px] sm:text-xs shadow-sm transition-all whitespace-nowrap"
               style={headFont}
             >
               <Rocket className="w-3 h-3" /> Enroll ₹{PRICE}
