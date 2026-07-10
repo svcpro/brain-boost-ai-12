@@ -1,12 +1,30 @@
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 
 const NotFound = () => {
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
+    const decodedPath = (() => {
+      try {
+        return decodeURIComponent(location.pathname);
+      } catch {
+        return location.pathname;
+      }
+    })();
+    const normalizedPath = decodedPath
+      .replace(/\/{2,}/g, "/")
+      .trim()
+      .replace(/\/+$/, "") || "/";
+
+    if (normalizedPath !== location.pathname && normalizedPath !== "") {
+      navigate(`${normalizedPath}${location.search}${location.hash}`, { replace: true });
+      return;
+    }
+
     console.error("404 Error: User attempted to access non-existent route:", location.pathname);
-  }, [location.pathname]);
+  }, [location.hash, location.pathname, location.search, navigate]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted">
