@@ -221,7 +221,7 @@ const MissionSuccessBatch = () => {
   const monoFont = { fontFamily: "'JetBrains Mono',monospace" };
 
   return (
-    <div className="min-h-screen bg-white text-neutral-900 antialiased selection:bg-[#FF5A1F] selection:text-white overflow-x-hidden" style={bodyFont}>
+    <div className="min-h-screen bg-white text-neutral-900 antialiased selection:bg-[#FF5A1F] selection:text-white overflow-x-hidden pb-20 sm:pb-0" style={bodyFont}>
       <SEO
         title="ACRY AI · Mission Success Batch 2026 — SSC CGL AI Coaching ₹999"
         description="India's smart AI-powered SSC CGL preparation. Live classes, recorded lectures, AI study support, mock tests, doubt solving. 12 months access at ₹999."
@@ -235,15 +235,15 @@ const MissionSuccessBatch = () => {
 
       {/* NAV */}
       <nav className="sticky top-0 z-40 bg-white/75 backdrop-blur-xl border-b border-neutral-900/8">
-        <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-2">
           <AcryLogo />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <span className="hidden md:inline-flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-widest text-neutral-500">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live · Enrolling
             </span>
             <button
               onClick={() => setShowEnrollModal(true)}
-              className="group inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-neutral-900 hover:bg-[#FF5A1F] text-white font-semibold text-xs shadow-sm transition-all"
+              className="group inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-lg bg-neutral-900 hover:bg-[#FF5A1F] text-white font-semibold text-[11px] sm:text-xs shadow-sm transition-all whitespace-nowrap"
               style={headFont}
             >
               <Rocket className="w-3 h-3" /> Enroll ₹{PRICE}
@@ -260,14 +260,14 @@ const MissionSuccessBatch = () => {
           <div className="space-y-5">
             <Eyebrow>Powered by ACRY AI · SSC CGL 2026</Eyebrow>
 
-            <h1 className="text-[2.6rem] md:text-[3.6rem] font-bold leading-[0.98] tracking-[-0.03em] text-neutral-900" style={headFont}>
+            <h1 className="text-[2rem] sm:text-[2.6rem] md:text-[3.6rem] font-bold leading-[1] tracking-[-0.03em] text-neutral-900" style={headFont}>
               Mission{" "}
               <span className="relative inline-block">
                 <span className="relative z-10 text-transparent bg-clip-text bg-gradient-to-br from-[#FF5A1F] via-[#FF8A2A] to-[#FFB800]">Success</span>
                 <span className="absolute inset-x-0 bottom-1 h-2 bg-[#FF5A1F]/15 -z-0" />
               </span>
               <br />
-              <span className="text-neutral-400 text-xl md:text-2xl font-medium tracking-tight">SSC CGL · Batch 2026</span>
+              <span className="text-neutral-400 text-lg sm:text-xl md:text-2xl font-medium tracking-tight">SSC CGL · Batch 2026</span>
             </h1>
 
             <p className="text-[15px] text-neutral-600 max-w-lg leading-relaxed">
@@ -549,7 +549,7 @@ const MissionSuccessBatch = () => {
 
       {/* STATS BAND */}
       <Section className="bg-neutral-900 border-y border-neutral-900 !py-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center md:text-left">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 text-center md:text-left">
           {[
             { n: enrolled, l: "Students Enrolled" },
             { n: hours, l: "Hours of Learning" },
@@ -557,7 +557,7 @@ const MissionSuccessBatch = () => {
             { n: questions, l: "Practice Questions" },
           ].map((x) => (
             <div key={x.l}>
-              <div className="text-3xl md:text-4xl font-bold tabular-nums text-white" style={headFont}>
+              <div className="text-2xl sm:text-3xl md:text-4xl font-bold tabular-nums text-white" style={headFont}>
                 {x.n}<span className="text-[#FF5A1F]">+</span>
               </div>
               <div className="mt-1 text-[9px] font-mono uppercase tracking-[0.22em] text-neutral-500">{x.l}</div>
@@ -580,11 +580,11 @@ const MissionSuccessBatch = () => {
             </h2>
             <p className="mt-2 text-neutral-500 text-sm">Limited seats. Price increases when the timer runs out.</p>
 
-            <div className="mt-6 flex items-center justify-center gap-2">
+            <div className="mt-6 flex items-center justify-center gap-1.5 sm:gap-2">
               {[["Hours", h], ["Mins", m], ["Secs", s]].map(([l, v]) => (
-                <div key={l as string} className="min-w-[76px] rounded-xl bg-neutral-900 text-white px-3 py-3">
-                  <div className="text-2xl md:text-3xl font-bold tabular-nums" style={headFont}>{String(v).padStart(2, "0")}</div>
-                  <div className="mt-0.5 text-[8px] font-mono uppercase tracking-[0.3em] text-neutral-500">{l}</div>
+                <div key={l as string} className="flex-1 max-w-[110px] rounded-xl bg-neutral-900 text-white px-2 sm:px-3 py-3">
+                  <div className="text-2xl md:text-3xl font-bold tabular-nums text-center" style={headFont}>{String(v).padStart(2, "0")}</div>
+                  <div className="mt-0.5 text-[8px] font-mono uppercase tracking-[0.3em] text-neutral-500 text-center">{l}</div>
                 </div>
               ))}
             </div>
