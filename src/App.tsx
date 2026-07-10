@@ -199,6 +199,9 @@ const App = () => (
               <Route path="/ambassador" element={<AmbassadorDashboard />} />
               <Route path="/ambassador/:section" element={<AmbassadorDashboard />} />
               <Route path="/unsubscribe" element={<UnsubscribePage />} />
+              <Route path="/mission-success-batch" element={<MissionSuccessBatch />} />
+              <Route path="/mission-success" element={<MissionSuccessBatch />} />
+              <Route path="/ssc-cgl-2026" element={<MissionSuccessBatch />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
