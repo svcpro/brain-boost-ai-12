@@ -580,11 +580,11 @@ const MissionSuccessBatch = () => {
             </h2>
             <p className="mt-2 text-neutral-500 text-sm">Limited seats. Price increases when the timer runs out.</p>
 
-            <div className="mt-6 flex items-center justify-center gap-2">
+            <div className="mt-6 flex items-center justify-center gap-1.5 sm:gap-2">
               {[["Hours", h], ["Mins", m], ["Secs", s]].map(([l, v]) => (
-                <div key={l as string} className="min-w-[76px] rounded-xl bg-neutral-900 text-white px-3 py-3">
-                  <div className="text-2xl md:text-3xl font-bold tabular-nums" style={headFont}>{String(v).padStart(2, "0")}</div>
-                  <div className="mt-0.5 text-[8px] font-mono uppercase tracking-[0.3em] text-neutral-500">{l}</div>
+                <div key={l as string} className="flex-1 max-w-[110px] rounded-xl bg-neutral-900 text-white px-2 sm:px-3 py-3">
+                  <div className="text-2xl md:text-3xl font-bold tabular-nums text-center" style={headFont}>{String(v).padStart(2, "0")}</div>
+                  <div className="mt-0.5 text-[8px] font-mono uppercase tracking-[0.3em] text-neutral-500 text-center">{l}</div>
                 </div>
               ))}
             </div>
