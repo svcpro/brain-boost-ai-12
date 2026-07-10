@@ -253,146 +253,150 @@ const MissionSuccessBatch = () => {
         </div>
       </nav>
 
-      {/* HERO */}
-      <Section className="!py-8 md:!py-14">
-        <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-10 items-center">
-          {/* LEFT */}
-          <div className="space-y-5">
-            <Eyebrow>Powered by ACRY AI · SSC CGL 2026</Eyebrow>
+      {/* HERO — Institutional command */}
+      <section className="relative px-4 md:px-6 pt-6 pb-14">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 border border-neutral-200 bg-white shadow-[0_32px_80px_-24px_rgba(15,15,15,0.12)] overflow-hidden">
 
-            <h1 className="text-[2.6rem] md:text-[3.6rem] font-bold leading-[0.98] tracking-[-0.03em] text-neutral-900" style={headFont}>
-              Mission{" "}
-              <span className="relative inline-block">
-                <span className="relative z-10 text-transparent bg-clip-text bg-gradient-to-br from-[#FF5A1F] via-[#FF8A2A] to-[#FFB800]">Success</span>
-                <span className="absolute inset-x-0 bottom-1 h-2 bg-[#FF5A1F]/15 -z-0" />
-              </span>
-              <br />
-              <span className="text-neutral-400 text-xl md:text-2xl font-medium tracking-tight">SSC CGL · Batch 2026</span>
-            </h1>
-
-            <p className="text-[15px] text-neutral-600 max-w-lg leading-relaxed">
-              The next evolution of exam prep. Live classes, adaptive AI and precision analytics —
-              engineered to predict patterns, automate revision and push your rank up every day.
-            </p>
-
-            {/* PRICE + CTA */}
-            <div className="flex flex-wrap items-center gap-4 pt-1">
-              <button
-                onClick={() => setShowEnrollModal(true)}
-                className="group relative px-5 py-3 rounded-lg bg-neutral-900 hover:bg-[#FF5A1F] text-white font-semibold text-sm flex items-center gap-2 shadow-[0_8px_24px_-8px_rgba(255,90,31,0.5)] transition-all"
-                style={headFont}
-              >
-                <span>Enroll for ₹{PRICE}</span>
-                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition" />
-              </button>
-
-              <div className="flex flex-col">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold text-neutral-900 tracking-tight leading-none" style={headFont}>₹{PRICE}</span>
-                  <span className="text-neutral-400 line-through text-xs">₹{ORIGINAL}</span>
-                  <span className="px-1.5 py-0.5 rounded-md bg-[#FF5A1F]/10 text-[#FF5A1F] text-[9px] font-mono font-bold uppercase tracking-widest">60% off</span>
-                </div>
-                <span className="text-[10px] text-neutral-500 mt-0.5">One-time · 12 months access</span>
+          {/* LEFT — Aspirant pitch */}
+          <div className="flex flex-col justify-center px-8 md:px-12 lg:px-16 py-12 lg:py-20 border-b lg:border-b-0 lg:border-r border-neutral-100 relative">
+            <div className="space-y-8">
+              <div className="inline-flex items-center gap-3">
+                <span className="px-2 py-0.5 bg-neutral-900 text-white text-[10px] font-bold tracking-[0.22em] uppercase" style={monoFont}>Batch_2026</span>
+                <div className="h-px w-10 bg-neutral-200" />
+                <span className="text-[10px] text-neutral-400 font-medium tracking-[0.14em] uppercase" style={monoFont}>Status: Active_Enrollment</span>
               </div>
-            </div>
 
-            {/* micro trust */}
-            <div className="flex items-center gap-3 pt-4 border-t border-neutral-900/8">
-              <div className="flex -space-x-1.5">
-                {["from-orange-500 to-amber-600","from-amber-500 to-yellow-600","from-red-500 to-orange-600","from-orange-400 to-red-500"].map((g,i)=>(
-                  <div key={i} className={`w-6 h-6 rounded-full border-2 border-white bg-gradient-to-br ${g}`} />
-                ))}
-              </div>
-              <p className="text-[10px] text-neutral-500 font-mono uppercase tracking-widest">
-                12,400+ aspirants training now
+              <h1 className="text-[3rem] md:text-[4.4rem] lg:text-[5.2rem] leading-[0.9] tracking-tight text-neutral-900" style={{ fontFamily: "'Fraunces',serif", fontWeight: 900 }}>
+                Mission<br />Success<span className="text-[#FF5A1F]">.</span>
+              </h1>
+
+              <p className="max-w-md text-lg text-neutral-600 leading-relaxed">
+                The definitive <span className="text-neutral-900 font-medium">SSC CGL 2026</span> preparation architecture — integrated with a live adaptive neural engine for predicted rank precision.
               </p>
+
+              <div className="flex flex-col gap-6">
+                <div className="flex items-baseline gap-3">
+                  <span className="text-4xl font-bold tracking-tighter text-neutral-900" style={monoFont}>₹{PRICE}</span>
+                  <span className="text-neutral-400 line-through text-sm" style={monoFont}>₹{ORIGINAL}</span>
+                  <span className="px-1.5 py-0.5 bg-[#FF5A1F]/10 text-[#FF5A1F] text-[10px] font-bold uppercase tracking-widest" style={monoFont}>60% off</span>
+                </div>
+
+                <button onClick={() => setShowEnrollModal(true)} className="group relative w-fit">
+                  <div className="absolute inset-0 translate-x-1.5 translate-y-1.5 bg-[#FF5A1F] transition-transform group-hover:translate-x-0 group-hover:translate-y-0" />
+                  <div className="relative flex items-center gap-4 bg-neutral-900 px-8 md:px-10 py-4 md:py-5 text-white transition-transform group-hover:-translate-x-1 group-hover:-translate-y-1">
+                    <span className="text-sm font-bold tracking-widest uppercase" style={monoFont}>Enroll_Into_Batch</span>
+                    <ArrowRight className="w-4 h-4" strokeWidth={2.5} />
+                  </div>
+                </button>
+
+                <p className="text-[10px] text-neutral-400 uppercase tracking-widest" style={monoFont}>One-time · 12 months access · Instant activation</p>
+              </div>
+
+              <div className="pt-8 border-t border-neutral-100 flex items-center gap-6">
+                <div className="flex -space-x-2">
+                  {["from-orange-500 to-amber-600","from-amber-500 to-yellow-600","from-red-500 to-orange-600","from-orange-400 to-red-500"].map((g,i)=>(
+                    <div key={i} className={`w-9 h-9 border-2 border-white bg-gradient-to-br ${g}`} />
+                  ))}
+                </div>
+                <div className="space-y-1.5">
+                  <div className="text-[11px] font-bold uppercase tracking-widest text-neutral-900" style={monoFont}>12,400+ Aspirants</div>
+                  <div className="flex items-center gap-1">
+                    {[0,1,2,3,4].map(i => (
+                      <div key={i} className={`w-1.5 h-1.5 bg-emerald-500 ${i===4 ? 'animate-pulse' : ''}`} />
+                    ))}
+                    <span className="ml-1 text-[9px] text-neutral-400 uppercase tracking-widest" style={monoFont}>Live now</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* RIGHT — Compact AI terminal */}
-          <div className="relative">
-            <div className="absolute -inset-0.5 bg-gradient-to-br from-[#FF5A1F]/25 via-transparent to-[#FFB800]/25 rounded-2xl blur-lg opacity-70" />
-            <div className="relative bg-white border border-neutral-900/10 rounded-2xl overflow-hidden shadow-[0_20px_60px_-20px_rgba(15,15,15,0.15)]">
-              {/* header */}
-              <div className="flex items-center justify-between px-3.5 py-2.5 bg-neutral-50 border-b border-neutral-900/8">
-                <div className="flex gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-red-400" />
-                  <div className="w-2 h-2 rounded-full bg-yellow-400" />
-                  <div className="w-2 h-2 rounded-full bg-green-400" />
+          {/* RIGHT — AI Command Center */}
+          <div className="bg-neutral-50 flex items-center justify-center p-6 md:p-10 relative overflow-hidden">
+            <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundImage: "radial-gradient(#000 1px, transparent 1px)", backgroundSize: "22px 22px" }} />
+            <div className="pointer-events-none absolute -top-24 -right-24 w-80 h-80 rounded-full bg-[#FF5A1F]/10 blur-3xl" />
+
+            <div className="relative w-full max-w-md bg-white border border-neutral-900 shadow-[14px_14px_0px_0px_rgba(245,245,245,1)] p-6 md:p-8" style={monoFont}>
+              <div className="flex items-center justify-between mb-8 border-b border-neutral-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                  <span className="text-[10px] font-bold tracking-widest uppercase">AI_Core_Telemetry</span>
                 </div>
-                <div className="text-[9px] text-neutral-500 tracking-[0.22em] uppercase" style={monoFont}>acry-core.v2 · live</div>
-                <ScanLine className="w-3 h-3 text-[#FF5A1F] animate-pulse" />
+                <span className="text-[10px] text-neutral-400">v4.0.2 // STABLE</span>
               </div>
 
-              <div className="p-4 space-y-3.5">
-                <div className="flex items-center gap-2 text-[10px] text-neutral-500" style={monoFont}>
-                  <span className="text-[#FF5A1F]">▸</span> analysing_topic <span className="text-neutral-300">/</span> Reasoning · Blood Relations
-                </div>
-
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-900/6">
-                    <div className="text-[8px] uppercase tracking-widest text-neutral-500" style={monoFont}>Accuracy</div>
-                    <div className="mt-0.5 text-2xl font-bold tabular-nums text-neutral-900" style={headFont}>98.2%</div>
-                    <div className="mt-1.5 h-1 bg-neutral-900/5 rounded-full overflow-hidden">
-                      <div className="h-full w-[98%] bg-gradient-to-r from-[#FFB800] to-[#FF5A1F]" />
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-[#FF5A1F]/[0.06] border border-[#FF5A1F]/20 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,#FF5A1F_0%,transparent_60%)] opacity-10" />
-                    <div className="relative text-[8px] uppercase tracking-widest text-[#FF5A1F]" style={monoFont}>Predicted Rank</div>
-                    <div className="relative mt-0.5 text-2xl font-bold tabular-nums text-[#FF5A1F]" style={headFont}>#142</div>
-                    <div className="relative mt-1.5 flex items-center gap-1 text-[9px] text-neutral-600" style={monoFont}>
-                      <ArrowUpRight className="w-2.5 h-2.5 text-emerald-600" /> +38 this week
-                    </div>
+              <div className="grid grid-cols-2 gap-6 mb-10">
+                <div className="space-y-1">
+                  <div className="text-[10px] text-neutral-400 uppercase tracking-widest">Predicted_Rank</div>
+                  <div className="text-3xl md:text-4xl font-bold tracking-tighter text-neutral-900">#00142</div>
+                  <div className="h-1 w-full bg-neutral-100 mt-2">
+                    <div className="h-full bg-neutral-900" style={{ width: "85%" }} />
                   </div>
                 </div>
-
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-[9px] uppercase tracking-widest text-neutral-500" style={monoFont}>
-                    <span>Syllabus Coverage</span><span className="text-neutral-900">84%</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-neutral-900/5 overflow-hidden">
-                    <div className="h-full w-[84%] bg-gradient-to-r from-[#FF5A1F] to-[#FFB800]" />
+                <div className="space-y-1">
+                  <div className="text-[10px] text-neutral-400 uppercase tracking-widest">Accuracy_Net</div>
+                  <div className="text-3xl md:text-4xl font-bold tracking-tighter text-emerald-600">98.2%</div>
+                  <div className="flex gap-1 mt-2">
+                    <div className="flex-1 h-1 bg-emerald-500" />
+                    <div className="flex-1 h-1 bg-emerald-500" />
+                    <div className="flex-1 h-1 bg-emerald-500" />
+                    <div className="flex-1 h-1 bg-emerald-500" />
                   </div>
                 </div>
+              </div>
 
-                <div className="space-y-1.5 pt-2 border-t border-neutral-900/6">
-                  {[
-                    ["Adaptive revision queue", "12 topics"],
-                    ["Mock #14 · analysed", "84 / 100"],
-                    ["Weak zones optimised", "3 → 0"],
-                  ].map(([k, v]) => (
-                    <div key={k} className="flex items-center justify-between text-[11px]">
-                      <div className="flex items-center gap-1.5 text-neutral-600">
-                        <div className="w-3 h-3 rounded-sm border border-[#FF5A1F]/40 flex items-center justify-center">
-                          <div className="w-1 h-1 bg-[#FF5A1F] rounded-sm" />
-                        </div>
-                        {k}
-                      </div>
-                      <span className="text-neutral-900 tabular-nums font-medium" style={monoFont}>{v}</span>
-                    </div>
+              <div className="space-y-3 mb-8">
+                <div className="text-[10px] text-neutral-400 uppercase tracking-widest mb-3">Live_Analysis_Feed</div>
+                <div className="flex items-start gap-3 text-[11px]">
+                  <span className="text-neutral-400 tabular-nums">[14:02:11]</span>
+                  <span className="text-neutral-700">Calculating deviation · Tier-1 Quant…</span>
+                </div>
+                <div className="flex items-start gap-3 text-[11px]">
+                  <span className="text-neutral-400 tabular-nums">[14:02:14]</span>
+                  <div className="flex-1">
+                    <span className="text-emerald-600 font-bold uppercase">Optimise:</span>{" "}
+                    <span className="text-neutral-700">Shift to Advanced Geometry (+14%)</span>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 text-[11px]">
+                  <span className="text-neutral-400 tabular-nums">[14:02:18]</span>
+                  <span className="text-neutral-700">Syncing 12,400 peer data points…</span>
+                </div>
+                <div className="flex items-start gap-3 text-[11px]">
+                  <span className="text-neutral-400 tabular-nums">[14:02:22]</span>
+                  <div className="flex-1">
+                    <span className="text-[#FF5A1F] font-bold uppercase">Alert:</span>{" "}
+                    <span className="text-neutral-700">Mock #14 analysed · 184.5/200</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border border-neutral-100 p-4 bg-neutral-50">
+                <div className="flex justify-between text-[9px] text-neutral-400 uppercase tracking-widest mb-2">
+                  <span>Topic_Mastery</span>
+                  <span className="text-emerald-600">Trend ↑</span>
+                </div>
+                <div className="flex justify-between items-end gap-1.5 h-20">
+                  {[60,45,85,30,95,55,70,40].map((h,i) => (
+                    <div key={i} className={`w-full ${i === 4 ? 'bg-[#FF5A1F]' : 'bg-neutral-900'}`} style={{ height: `${h}%` }} />
                   ))}
                 </div>
+                <div className="flex justify-between mt-2 text-[8px] text-neutral-400 font-bold uppercase tracking-tight">
+                  <span>Quant</span>
+                  <span>Reason</span>
+                  <span>Eng</span>
+                  <span>GA</span>
+                </div>
               </div>
-            </div>
 
-            {/* floating live score */}
-            <div className="hidden sm:block absolute -bottom-4 -right-3 px-3.5 py-2.5 bg-white border border-neutral-900/10 rounded-xl shadow-lg">
-              <div className="text-[8px] font-bold uppercase tracking-[0.2em] text-[#FF5A1F]" style={monoFont}>Live Score</div>
-              <div className="mt-0.5 text-lg font-bold tabular-nums text-neutral-900" style={headFont}>
-                184.5<span className="text-[10px] text-neutral-400 ml-0.5">/200</span>
-              </div>
-            </div>
-            <div className="hidden sm:block absolute -top-3 -left-3 px-3 py-1.5 bg-white border border-neutral-900/10 rounded-xl shadow-md">
-              <div className="flex items-center gap-1.5 text-[9px]" style={monoFont}>
-                <Radar className="w-3 h-3 text-[#FF5A1F] animate-pulse" />
-                <span className="text-neutral-500">AI:</span>
-                <span className="text-emerald-600 font-semibold">optimal</span>
+              <div className="absolute -bottom-14 -right-4 text-[9rem] font-black text-neutral-100 -z-10 pointer-events-none select-none leading-none" style={{ fontFamily: "'Fraunces',serif" }}>
+                2026
               </div>
             </div>
           </div>
         </div>
-      </Section>
+      </section>
+
 
       {/* TRUST MARQUEE */}
       <div className="border-y border-neutral-900/8 bg-neutral-50/60 overflow-hidden">
