@@ -101,7 +101,7 @@ const PWAInstallBanner = () => {
     localStorage.setItem(DISMISSED_KEY, Date.now().toString());
   }, []);
 
-  if (isStandalone || location.pathname.startsWith("/institute")) return null;
+  if (isStandalone || location.pathname.startsWith("/institute") || location.pathname.startsWith("/mission-success") || location.pathname === "/ssc-cgl-2026") return null;
 
   return (
     <AnimatePresence>
