@@ -260,14 +260,14 @@ const MissionSuccessBatch = () => {
           <div className="space-y-5">
             <Eyebrow>Powered by ACRY AI · SSC CGL 2026</Eyebrow>
 
-            <h1 className="text-[2.6rem] md:text-[3.6rem] font-bold leading-[0.98] tracking-[-0.03em] text-neutral-900" style={headFont}>
+            <h1 className="text-[2rem] sm:text-[2.6rem] md:text-[3.6rem] font-bold leading-[1] tracking-[-0.03em] text-neutral-900" style={headFont}>
               Mission{" "}
               <span className="relative inline-block">
                 <span className="relative z-10 text-transparent bg-clip-text bg-gradient-to-br from-[#FF5A1F] via-[#FF8A2A] to-[#FFB800]">Success</span>
                 <span className="absolute inset-x-0 bottom-1 h-2 bg-[#FF5A1F]/15 -z-0" />
               </span>
               <br />
-              <span className="text-neutral-400 text-xl md:text-2xl font-medium tracking-tight">SSC CGL · Batch 2026</span>
+              <span className="text-neutral-400 text-lg sm:text-xl md:text-2xl font-medium tracking-tight">SSC CGL · Batch 2026</span>
             </h1>
 
             <p className="text-[15px] text-neutral-600 max-w-lg leading-relaxed">
