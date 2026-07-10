@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import SEO from "@/components/SEO";
 
-const PRICE = 999;
+const PRICE = 1999;
 const ORIGINAL = 4999;
 
 declare global {
