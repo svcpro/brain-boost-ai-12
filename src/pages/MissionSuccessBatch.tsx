@@ -168,22 +168,9 @@ const MissionSuccessBatch = () => {
   const [form, setForm] = useState({ name: "", mobile: "", email: "" });
   const [loading, setLoading] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const [showExitPopup, setShowExitPopup] = useState(false);
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [thankYou, setThankYou] = useState(false);
-  const [leadForm, setLeadForm] = useState({ name: "", mobile: "", email: "" });
 
-  useEffect(() => {
-    if (sessionStorage.getItem("msb_exit_shown")) return;
-    const handler = (e: MouseEvent) => {
-      if (e.clientY < 5) {
-        sessionStorage.setItem("msb_exit_shown", "1");
-        setShowExitPopup(true);
-      }
-    };
-    document.addEventListener("mouseout", handler);
-    return () => document.removeEventListener("mouseout", handler);
-  }, []);
 
   const openCheckout = async () => {
     if (!form.name.trim() || !/^[6-9]\d{9}$/.test(form.mobile.replace(/\D/g, "").slice(-10))) {
