@@ -221,7 +221,7 @@ const MissionSuccessBatch = () => {
   const monoFont = { fontFamily: "'JetBrains Mono',monospace" };
 
   return (
-    <div className="min-h-screen bg-white text-neutral-900 antialiased selection:bg-[#FF5A1F] selection:text-white overflow-x-hidden" style={bodyFont}>
+    <div className="min-h-screen bg-white text-neutral-900 antialiased selection:bg-[#FF5A1F] selection:text-white overflow-x-hidden pb-20 sm:pb-0" style={bodyFont}>
       <SEO
         title="ACRY AI · Mission Success Batch 2026 — SSC CGL AI Coaching ₹999"
         description="India's smart AI-powered SSC CGL preparation. Live classes, recorded lectures, AI study support, mock tests, doubt solving. 12 months access at ₹999."
