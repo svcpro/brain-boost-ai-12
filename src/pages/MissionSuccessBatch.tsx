@@ -119,7 +119,7 @@ const faqs: [string, string][] = [
   ["Is this course live?", "Yes, with recorded backups you can re-watch anytime."],
   ["Will recordings be available?", "Yes, every live class is recorded and added to your dashboard."],
   ["Can beginners join?", "Absolutely — the curriculum starts from foundations."],
-  ["Is it mobile friendly?", "Yes, fully optimized for the Akrai AI mobile app."],
+  ["Is it mobile friendly?", "Yes, fully optimized for the ACRY AI mobile app."],
   ["Will mock tests be included?", "Yes — topic, chapter, and full-length mocks with AI analysis."],
   ["Will I receive notes?", "Yes, downloadable PDF notes for every subject."],
   ["Can I ask doubts?", "Yes, unlimited doubt solving with faculty + AI."],
@@ -127,14 +127,14 @@ const faqs: [string, string][] = [
 ];
 
 /* ─── primitives ────────────────────────────────────── */
-const AkraiLogo = () => (
+const AcryLogo = () => (
   <div className="flex items-center gap-2">
     <div className="relative w-8 h-8 rounded-lg bg-neutral-900 flex items-center justify-center">
       <Cpu className="w-4 h-4 text-[#FF5A1F]" strokeWidth={2.4} />
       <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#FF5A1F] ring-2 ring-white" />
     </div>
     <div className="leading-tight">
-      <div className="text-[13px] font-bold text-neutral-900 tracking-tight" style={{ fontFamily: "'Space Grotesk',sans-serif" }}>Akrai AI</div>
+      <div className="text-[13px] font-bold text-neutral-900 tracking-tight" style={{ fontFamily: "'Space Grotesk',sans-serif" }}>ACRY AI</div>
       <div className="text-[8px] text-neutral-500 uppercase tracking-[0.22em] font-mono">Mission_Success</div>
     </div>
   </div>
@@ -203,7 +203,7 @@ const MissionSuccessBatch = () => {
         amount: data.order.amount,
         currency: data.order.currency,
         order_id: data.order.id,
-        name: "Akrai AI · Mission Success Batch",
+        name: "ACRY AI · Mission Success Batch",
         description: "SSC CGL 2026 Complete Batch",
         prefill: { name: form.name, email: form.email, contact: form.mobile },
         theme: { color: "#FF5A1F" },
@@ -248,7 +248,7 @@ const MissionSuccessBatch = () => {
   return (
     <div className="min-h-screen bg-white text-neutral-900 antialiased selection:bg-[#FF5A1F] selection:text-white overflow-x-hidden" style={bodyFont}>
       <SEO
-        title="Akrai AI · Mission Success Batch 2026 — SSC CGL AI Coaching ₹999"
+        title="ACRY AI · Mission Success Batch 2026 — SSC CGL AI Coaching ₹999"
         description="India's smart AI-powered SSC CGL preparation. Live classes, recorded lectures, AI study support, mock tests, doubt solving. 12 months access at ₹999."
         path="/mission-success-batch"
       />
@@ -261,7 +261,7 @@ const MissionSuccessBatch = () => {
       {/* NAV */}
       <nav className="sticky top-0 z-40 bg-white/75 backdrop-blur-xl border-b border-neutral-900/8">
         <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center justify-between">
-          <AkraiLogo />
+          <AcryLogo />
           <div className="flex items-center gap-2">
             <span className="hidden md:inline-flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-widest text-neutral-500">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live · Enrolling
@@ -283,7 +283,7 @@ const MissionSuccessBatch = () => {
         <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-10 items-center">
           {/* LEFT */}
           <div className="space-y-5">
-            <Eyebrow>Powered by Akrai AI · SSC CGL 2026</Eyebrow>
+            <Eyebrow>Powered by ACRY AI · SSC CGL 2026</Eyebrow>
 
             <h1 className="text-[2.6rem] md:text-[3.6rem] font-bold leading-[0.98] tracking-[-0.03em] text-neutral-900" style={headFont}>
               Mission{" "}
@@ -345,7 +345,7 @@ const MissionSuccessBatch = () => {
                   <div className="w-2 h-2 rounded-full bg-yellow-400" />
                   <div className="w-2 h-2 rounded-full bg-green-400" />
                 </div>
-                <div className="text-[9px] text-neutral-500 tracking-[0.22em] uppercase" style={monoFont}>akrai-core.v2 · live</div>
+                <div className="text-[9px] text-neutral-500 tracking-[0.22em] uppercase" style={monoFont}>acry-core.v2 · live</div>
                 <ScanLine className="w-3 h-3 text-[#FF5A1F] animate-pulse" />
               </div>
 
@@ -433,7 +433,7 @@ const MissionSuccessBatch = () => {
       {/* WHY */}
       <Section>
         <div className="max-w-xl">
-          <Eyebrow>Why Akrai AI</Eyebrow>
+          <Eyebrow>Why ACRY AI</Eyebrow>
           <h2 className="mt-3 text-3xl md:text-4xl font-bold tracking-[-0.02em] text-neutral-900" style={headFont}>
             Precision-engineered for <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF5A1F] to-[#FFB800]">selection</span>.
           </h2>
@@ -653,7 +653,7 @@ const MissionSuccessBatch = () => {
       <footer className="bg-neutral-50/60 border-t border-neutral-900/8">
         <div className="max-w-5xl mx-auto px-4 py-8 grid md:grid-cols-3 gap-6">
           <div>
-            <AkraiLogo />
+            <AcryLogo />
             <p className="mt-3 text-[12px] text-neutral-500 leading-relaxed max-w-xs">
               AI-powered government exam preparation platform. Live · Recorded · AI · Mocks.
             </p>
@@ -661,7 +661,7 @@ const MissionSuccessBatch = () => {
           <div>
             <div className="text-[9px] font-mono uppercase tracking-[0.22em] text-neutral-500 mb-2">Contact</div>
             <div className="text-[12.5px] space-y-1.5 text-neutral-700">
-              <div className="flex items-center gap-1.5"><Mail className="w-3 h-3 text-[#FF5A1F]" /> support@akrai.ai</div>
+              <div className="flex items-center gap-1.5"><Mail className="w-3 h-3 text-[#FF5A1F]" /> support@acry.ai</div>
               <div className="flex items-center gap-1.5"><Phone className="w-3 h-3 text-[#FF5A1F]" /> +91 98218 30895</div>
             </div>
           </div>
@@ -676,7 +676,7 @@ const MissionSuccessBatch = () => {
         </div>
         <div className="border-t border-neutral-900/8">
           <div className="max-w-5xl mx-auto px-4 py-3 text-[10px] text-neutral-500 text-center font-mono uppercase tracking-widest">
-            © {new Date().getFullYear()} Akrai AI · All Rights Reserved
+            © {new Date().getFullYear()} ACRY AI · All Rights Reserved
           </div>
         </div>
       </footer>
@@ -748,7 +748,7 @@ const MissionSuccessBatch = () => {
               <h3 className="mt-4 text-2xl font-bold text-neutral-900" style={headFont}>You're in. 🎉</h3>
               <p className="mt-1 text-neutral-500 text-sm">Welcome to Mission Success Batch. Payment confirmed.</p>
               <div className="mt-5 space-y-1.5 text-left text-[12.5px]">
-                {["Download the Akrai AI mobile app","Login to your dashboard","Join our WhatsApp community","Attend the orientation session","Start your first class"].map((t, i) => (
+                {["Download the ACRY AI mobile app","Login to your dashboard","Join our WhatsApp community","Attend the orientation session","Start your first class"].map((t, i) => (
                   <div key={t} className="flex items-center gap-2 text-neutral-700">
                     <div className="w-4 h-4 rounded-md bg-[#FF5A1F]/10 border border-[#FF5A1F]/30 flex items-center justify-center shrink-0">
                       <Star className="w-2 h-2 text-[#FF5A1F]" />
