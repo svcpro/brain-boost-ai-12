@@ -189,3 +189,5 @@ project_id = "yvxrsujwgmzdjzsjyqfb"
     verify_jwt = false
   [functions.world-model-simulation]
     verify_jwt = false
+  [functions.mission-batch-checkout]
+    verify_jwt = false
