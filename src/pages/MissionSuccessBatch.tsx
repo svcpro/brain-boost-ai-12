@@ -557,7 +557,7 @@ const MissionSuccessBatch = () => {
             { n: questions, l: "Practice Questions" },
           ].map((x) => (
             <div key={x.l}>
-              <div className="text-3xl md:text-4xl font-bold tabular-nums text-white" style={headFont}>
+              <div className="text-2xl sm:text-3xl md:text-4xl font-bold tabular-nums text-white" style={headFont}>
                 {x.n}<span className="text-[#FF5A1F]">+</span>
               </div>
               <div className="mt-1 text-[9px] font-mono uppercase tracking-[0.22em] text-neutral-500">{x.l}</div>
